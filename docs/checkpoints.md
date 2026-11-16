@@ -10,6 +10,6 @@ Rule: every checkpoint needs fachril's approval before it starts. Before each on
 | CP3a | ✅ done | Designer, Engineer, QA | Docs aligned to PM decisions; scaffold refactor (target + 2 wins, final map schema, RNG streams); real Indonesia map; minigame framework + Tap Tepat Waktu; cooldown/retry; test hooks; Playwright + CP3a tests | First playable race on the real map with 1 minigame |
 | CP3b | ✅ done | Designer, Engineer, QA | Remaining should-fix doc items; Simon + Hindari Rintangan (3D) | 2D + 3D minigame framework proven |
 | CP4a | ✅ done | Designer, Engineer, QA | Card docs fixes; 20 cards as data + effect engine; pick-N-of-5 offer, hand max 5 + discard, 15 s timers; boost (self) cards active; offers are boost-only until CP4b; fix CP3b B-1 | Earn and use boost cards in a race |
-| CP4b | ⏳ awaiting approval | Designer, Engineer, QA | Sabotage + targeting + cap 2, Copet, shield/mirror, comeback rarity weights | Full card loop |
+| CP4b | 🔄 in progress | Designer, Engineer, QA | Sabotage + targeting + cap 2, Copet, shield/mirror, comeback rarity weights | Full card loop |
 | CP5 | ⏸ draft | Engineer, QA | Bots (3 levels), remaining minigames | Solo vs bots full match |
 | CP6 | ⏸ draft | Designer, Engineer, QA | Polish, mobile check, playtest, MVP build | MVP ready to play |
