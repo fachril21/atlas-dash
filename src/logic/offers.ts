@@ -14,7 +14,7 @@ export const OFFER_SIZE = 5;
 export const HAND_MAX = 5;
 export const CARD_SCREEN_MS = 15_000;
 export const N_BASE: Readonly<Record<Difficulty, number>> = { easy: 1, medium: 2, hard: 3 };
-/** "Pemimpin / seri depan" row (§3.2). */
+/** "Pemimpin / seri depan" row (§3.2): the baseline weights. */
 export const LEADER_WEIGHTS: RarityWeights = { common: 75, rare: 22, epic: 3 };
 
 export interface TierInfo {
@@ -23,12 +23,28 @@ export interface TierInfo {
   guaranteeRarePlus: boolean;
 }
 
+/** Comeback tiers (§3.2): rows by `gap` in remainingWins behind the leader. */
+export const COMEBACK_TIERS: readonly { minGap: number; info: TierInfo }[] = [
+  { minGap: 5, info: { weights: { common: 45, rare: 35, epic: 20 }, guaranteeRarePlus: true } },
+  { minGap: 3, info: { weights: { common: 55, rare: 32, epic: 13 }, guaranteeRarePlus: true } },
+  { minGap: 1, info: { weights: { common: 65, rare: 28, epic: 7 }, guaranteeRarePlus: false } },
+  { minGap: 0, info: { weights: LEADER_WEIGHTS, guaranteeRarePlus: false } },
+];
+
 /**
- * Comeback tier hook. CP4a: everyone gets the leader row, no guarantee. CP4b replaces only
- * this function (gap-based tiers).
+ * gap(p) = remainingWins(p) - min(remainingWins(q)) over every player (p and the bots included).
+ * Call it at the moment the win is recorded, after the pawn moved and remainingWins was refreshed.
  */
-export function tierWeights(_player: Pick<PlayerState, 'id'>): TierInfo {
-  return { weights: LEADER_WEIGHTS, guaranteeRarePlus: false };
+export function comebackGap(players: readonly Pick<PlayerState, 'remainingWins'>[], me: Pick<PlayerState, 'remainingWins'>): number {
+  const best = players.reduce((m, q) => Math.min(m, q.remainingWins), me.remainingWins);
+  return Math.max(0, me.remainingWins - best);
+}
+
+/** The §3.2 weight row (and rare+ guarantee) for a gap. Same table for humans and bots (DR-32). */
+export function tierWeights(gap: number): TierInfo {
+  const g = Number.isFinite(gap) ? gap : 0;
+  const tier = COMEBACK_TIERS.find((t) => g >= t.minGap) ?? (COMEBACK_TIERS[COMEBACK_TIERS.length - 1] as (typeof COMEBACK_TIERS)[number]);
+  return { weights: { ...tier.info.weights }, guaranteeRarePlus: tier.info.guaranteeRarePlus };
 }
 
 /** Draw a rarity among those that still have cards in `remaining`; exactly one rng.next(). */

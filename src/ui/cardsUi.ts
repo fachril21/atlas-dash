@@ -8,20 +8,31 @@ import {
   cardPlayability,
   CARD_SCREEN_MS,
   cardWarnings,
+  checkTarget,
   discardNeeded,
   getCard,
   HAND_MAX,
+  impactSummary,
+  opponentChecks,
+  ranking,
+  sabotageSlotsUsed,
   type CardDef,
   type CardInstance,
+  type GameAction,
+  type GameEvent,
   type GameState,
   type MapGraph,
   type PlayerState,
+  type RejectReason,
 } from '../logic';
+import { PLAYER_CSS_COLORS } from '../render/palette';
+import { slotDots, statusIcon, statusText } from './status';
 import { t } from './strings';
 import './cards.css';
 
 export interface CardsCallbacks {
-  onPlay(uid: string): void;
+  /** `targetId` is set for sabotage aimed at one opponent (picked in the picker). */
+  onPlay(uid: string, targetId?: string): void;
   onMark(uid: string): void;
   onConfirm(): void;
 }
@@ -44,9 +55,14 @@ export function cardFace(def: CardDef, opts: { showDesc?: boolean } = {}): strin
 
 export class CardsUi {
   private readonly root: HTMLElement;
-  private readonly el: Record<'pending' | 'hand' | 'detail' | 'offer' | 'discard', HTMLElement>;
+  private readonly el: Record<'pending' | 'hand' | 'detail' | 'offer' | 'discard' | 'picker' | 'toasts', HTMLElement>;
   private readonly cache = new Map<HTMLElement, string>();
   private selectedUid: string | null = null;
+  /** Card whose target picker (opponent sabotage) or Gunung confirmation is open. */
+  private pickerUid: string | null = null;
+  private confirmUid: string | null = null;
+  private state: Readonly<GameState> | null = null;
+  private toasts: { text: string; until: number; tone: 'good' | 'bad' | 'info' }[] = [];
 
   constructor(
     parent: HTMLElement,
@@ -63,7 +79,9 @@ export class CardsUi {
       <div class="hand-detail" data-testid="card-detail" hidden></div>
       <nav class="hand-bar" data-testid="hand-bar" aria-label="${t('hand.label')}"></nav>
       <div class="card-modal" data-testid="card-offer" hidden></div>
-      <div class="card-modal" data-testid="discard-screen" hidden></div>`;
+      <div class="card-modal" data-testid="discard-screen" hidden></div>
+      <div class="card-modal picker-modal" data-testid="target-picker" hidden></div>
+      <div class="card-toasts" data-testid="card-toasts" aria-live="polite"></div>`;
     const q = (s: string) => root.querySelector(s) as HTMLElement;
     this.el = {
       pending: q('.pending-row'),
@@ -71,6 +89,8 @@ export class CardsUi {
       detail: q('.hand-detail'),
       offer: q('[data-testid="card-offer"]'),
       discard: q('[data-testid="discard-screen"]'),
+      picker: q('[data-testid="target-picker"]'),
+      toasts: q('[data-testid="card-toasts"]'),
     };
     root.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
@@ -78,36 +98,152 @@ export class CardsUi {
       if (!btn || (btn as HTMLButtonElement).disabled) return;
       const uid = btn.dataset.uid ?? '';
       switch (btn.dataset.cardAction) {
-        case 'select': this.selectedUid = this.selectedUid === uid ? null : uid; break;
-        case 'cancel': this.selectedUid = null; break;
-        case 'play': { const u = this.selectedUid; this.selectedUid = null; if (u) this.cb.onPlay(u); break; }
+        case 'select': this.selectedUid = this.selectedUid === uid ? null : uid; this.pickerUid = null; this.confirmUid = null; break;
+        case 'cancel': this.selectedUid = null; this.pickerUid = null; this.confirmUid = null; break;
+        case 'play': this.onPlayClicked(); break;
+        case 'picker-cancel': this.pickerUid = null; break; // back to the card detail
+        case 'pick': if (this.pickerUid && btn.dataset.target) this.cb.onPlay(this.pickerUid, btn.dataset.target); break;
+        case 'confirm-yes': { const u = this.confirmUid; this.confirmUid = null; this.selectedUid = null; if (u) this.cb.onPlay(u); break; }
+        case 'confirm-no': this.confirmUid = null; break;
         case 'mark': this.cb.onMark(uid); break;
         case 'confirm': this.cb.onConfirm(); break;
       }
     });
-    window.addEventListener('keydown', this.onKey);
   }
 
   dispose(): void {
-    window.removeEventListener('keydown', this.onKey);
     this.root.remove();
   }
 
-  private readonly onKey = (e: KeyboardEvent): void => {
-    if (e.code === 'Escape' && this.selectedUid) this.selectedUid = null;
-  };
+  /** True when a picker / confirmation / detail was open (Esc closes it instead of pausing). */
+  closeCardPopovers(): boolean {
+    const was = this.pickerUid !== null || this.confirmUid !== null || this.selectedUid !== null;
+    this.pickerUid = null;
+    this.confirmUid = null;
+    this.selectedUid = null;
+    return was;
+  }
+
+  /** Esc closes a card popover before it pauses: main asks first. */
+  hasOpenPopover(): boolean {
+    return this.pickerUid !== null || this.confirmUid !== null || this.selectedUid !== null;
+  }
+
+  private onPlayClicked(): void {
+    const state = this.state;
+    const uid = this.selectedUid;
+    const me = state?.players.find((p) => p.id === this.humanId);
+    const card = uid ? me?.hand.find((c) => c.uid === uid) : undefined;
+    if (!state || !me || !uid || !card) return;
+    const def = getCard(card.defId);
+    if (def.type === 'sabotage' && def.target === 'opponent') {
+      const others = state.players.filter((p) => p.id !== this.humanId);
+      if (others.length === 1) {
+        // One opponent in the match: the picker is skipped (ui-flow §7).
+        this.selectedUid = null;
+        this.cb.onPlay(uid, (others[0] as PlayerState).id);
+      } else this.pickerUid = uid;
+    } else if (def.target === 'all_opponents') {
+      this.confirmUid = uid;
+    } else {
+      this.selectedUid = null;
+      this.cb.onPlay(uid);
+    }
+  }
+
+  /** The reducer refused a play (cards.md §2.2.1 (c)): say why, keep the picker open, nothing was spent. */
+  onRejected(state: Readonly<GameState>, action: GameAction, reason: RejectReason): void {
+    if (action.type !== 'playCard' || action.playerId !== this.humanId) return;
+    if (reason !== 'bad-target' && reason !== 'card-unplayable') return;
+    const me = state.players.find((p) => p.id === this.humanId);
+    const card = me?.hand.find((c) => c.uid === action.cardUid);
+    const target = state.players.find((p) => p.id === action.targetId);
+    if (!me || !card || !target) return;
+    const check = checkTarget(state, me, getCard(card.defId), target);
+    if (!check.ok && check.label) this.toast(t('toast.targetInvalid', { name: target.name, label: t(`target.label.${check.label}`) }), 'bad');
+  }
+
+  /** Toasts for card events (cards.md §2.2.5, ui-flow §7 "Umpan balik"). Card names only for sender and target (DR-33). */
+  onEvents(state: Readonly<GameState>, events: readonly GameEvent[]): void {
+    const nm = (id: string): string => (id === this.humanId ? t('you') : (state.players.find((p) => p.id === id)?.name ?? id));
+    const cn = (cardId: string): string => t(getCard(cardId).nameKey);
+    const me = this.humanId;
+    for (const e of events) {
+      if (e.type === 'sabotagePlayed') {
+        const mineSent = e.senderId === me;
+        const mineTarget = e.targetId === me;
+        const card = cn(e.cardId);
+        if (mineSent) {
+          switch (e.outcome) {
+            case 'landed': this.toast(t('toast.sentLanded', { card, target: nm(e.targetId) }), 'info'); break;
+            case 'blocked': this.toast(t('toast.sentBlocked', { target: nm(e.targetId) }), 'bad'); break;
+            case 'reflected': this.toast(t('toast.sentReflected'), 'bad'); break;
+            case 'reflectBurned': this.toast(t('toast.sentReflectBurned'), 'info'); break;
+            case 'reflectEmpty': this.toast(t('toast.sentReflectEmpty', { target: nm(e.targetId) }), 'info'); break;
+            default: break; // stolen / reflectStolen: the cardStolen event speaks
+          }
+        } else if (mineTarget) {
+          const sender = nm(e.senderId);
+          switch (e.outcome) {
+            case 'landed': this.toast(t('toast.gotSabotaged', { sender, card }), 'bad'); break;
+            case 'blocked': this.toast(t('toast.gotBlocked', { sender, card }), 'good'); break;
+            case 'reflected': this.toast(t('toast.gotReflected', { sender, card }), 'good'); break;
+            case 'reflectBurned': this.toast(t('toast.gotReflectBurned', { sender, card }), 'good'); break;
+            case 'reflectEmpty': this.toast(t('toast.gotReflectEmpty', { sender }), 'good'); break;
+            default: break;
+          }
+        } else if (e.outcome === 'landed') {
+          this.toast(t('toast.othersSabotage', { sender: nm(e.senderId), target: nm(e.targetId) }), 'info');
+        }
+      } else if (e.type === 'cardStolen') {
+        const card = cn(e.cardId);
+        if (e.thiefId === me) this.toast(t('toast.youStole', { card, victim: nm(e.victimId) }), 'good');
+        else if (e.victimId === me) {
+          this.toast(t('toast.stolenFromYou', { thief: nm(e.thiefId), card }), 'bad');
+          // DR-27: the popover / picker of the stolen card closes; popovers for other cards stay.
+          const gone = e.uid === this.selectedUid || e.uid === this.pickerUid || e.uid === this.confirmUid;
+          if (gone) {
+            this.selectedUid = null;
+            this.pickerUid = null;
+            this.confirmUid = null;
+            this.toast(t('toast.cardStolen', { card }), 'bad');
+          }
+        } else this.toast(t('toast.othersStole', { thief: nm(e.thiefId), victim: nm(e.victimId) }), 'info');
+      } else if (e.type === 'discardCancelled' && e.playerId === me) {
+        this.toast(t('toast.noNeedDiscard'), 'info');
+      }
+    }
+  }
+
+  private toast(text: string, tone: 'good' | 'bad' | 'info'): void {
+    this.toasts.push({ text, tone, until: performance.now() + 2800 });
+    if (this.toasts.length > 3) this.toasts.shift();
+    this.renderToasts();
+  }
+
+  private renderToasts(): void {
+    const now = performance.now();
+    this.toasts = this.toasts.filter((x) => x.until > now);
+    this.patch(this.el.toasts, this.toasts.map((x, i) => `<p class="ctoast ${x.tone}" data-testid="card-toast-${i}">${esc(x.text)}</p>`).join(''));
+  }
 
   render(state: Readonly<GameState>): void {
+    this.state = state;
     const me = state.players.find((p) => p.id === this.humanId);
     const visible = !!me && state.status === 'running' && me.phase !== 'finished';
     this.root.hidden = !visible;
     if (!me || !visible) return;
     const screenOpen = !!(me.offer || me.discard);
     if (this.selectedUid && (screenOpen || me.phase !== 'idle' || !me.hand.some((c) => c.uid === this.selectedUid))) this.selectedUid = null;
+    if (this.pickerUid && (this.pickerUid !== this.selectedUid || screenOpen || me.phase !== 'idle')) this.pickerUid = null;
+    if (this.confirmUid && this.confirmUid !== this.selectedUid) this.confirmUid = null;
+    this.guardPicker(state, me);
+    this.renderToasts();
 
     this.renderPending(me);
     this.renderHand(state, me);
     this.renderDetail(state, me);
+    this.renderPicker(state, me);
     this.renderOffer(state, me);
     this.renderDiscard(state, me);
   }
@@ -138,8 +274,58 @@ export class CardsUi {
     this.patch(this.el.hand, slots.join(''));
   }
 
+  /** Picker auto-close: card gone, or no valid opponent left (then with a toast). */
+  private guardPicker(state: Readonly<GameState>, me: PlayerState): void {
+    const uid = this.pickerUid;
+    if (!uid) return;
+    const card = me.hand.find((c) => c.uid === uid);
+    if (!card) {
+      this.pickerUid = null;
+      return;
+    }
+    const def = getCard(card.defId);
+    if (!opponentChecks(state, me, def).some((c) => c.check.ok)) {
+      this.pickerUid = null;
+      this.toast(t('toast.noTargets'), 'bad');
+    }
+  }
+
+  private renderPicker(state: Readonly<GameState>, me: PlayerState): void {
+    const card = this.pickerUid ? me.hand.find((c) => c.uid === this.pickerUid) : undefined;
+    if (!card) {
+      this.el.picker.hidden = true;
+      this.patch(this.el.picker, '');
+      return;
+    }
+    const def = getCard(card.defId);
+    const checks = new Map(opponentChecks(state, me, def).map((c) => [c.id, c.check] as const));
+    const order = ranking(state);
+    const rows = order.filter((p) => p.id !== this.humanId).map((p) => {
+      const check = checks.get(p.id);
+      const ok = !!check?.ok;
+      const label = check && !check.ok && check.label ? t(`target.label.${check.label}`) : '';
+      const rank = order.findIndex((q) => q.id === p.id) + 1;
+      const sent = p.pending.filter((c) => c.source === this.humanId && getCard(c.defId).type === 'sabotage');
+      return `<button class="picker-row${ok ? '' : ' dim'}" data-card-action="pick" data-target="${p.id}" data-valid="${ok}" data-testid="picker-row-${p.id}" ${ok ? '' : 'disabled'}>
+        <span class="dot" style="background:${PLAYER_CSS_COLORS[p.colorIndex % PLAYER_CSS_COLORS.length]}"></span>
+        <span class="prank" data-testid="picker-rank-${p.id}">#${rank}</span>
+        <span class="pname">${esc(p.name)}</span>
+        ${rank === 1 ? `<span class="pleader">${t('picker.leader')}</span>` : ''}
+        <span class="pmeta">${t('race.winsLeft', { n: p.remainingWins })} · <span title="${statusText(state, p)}">${statusIcon(state, p)}</span> · ${t('picker.cards', { n: p.hand.length })} · <span data-testid="picker-slots-${p.id}">${slotDots(sabotageSlotsUsed(p))}</span></span>
+        ${label ? `<span class="plabel" data-testid="picker-label-${p.id}">${esc(label)}</span>` : ''}
+        ${sent.length ? `<span class="psent" title="${t('picker.sent')}">${sent.map((c) => `${getCard(c.defId).icon} ${esc(t(getCard(c.defId).nameKey))}`).join(', ')}</span>` : ''}
+      </button>`;
+    });
+    const html = `<div class="card-screen picker">
+      <h2 data-testid="picker-title">${t('picker.title', { card: esc(t(def.nameKey)) })}</h2>
+      <div class="picker-list">${rows.join('')}</div>
+      <button class="picker-cancel" data-card-action="picker-cancel" data-testid="btn-picker-cancel">${t('picker.cancel')}</button></div>`;
+    this.el.picker.hidden = false;
+    this.patch(this.el.picker, html);
+  }
+
   private renderDetail(state: Readonly<GameState>, me: PlayerState): void {
-    const c = this.selectedUid ? me.hand.find((x) => x.uid === this.selectedUid) : undefined;
+    const c = this.selectedUid && !this.pickerUid ? me.hand.find((x) => x.uid === this.selectedUid) : undefined;
     if (!c) {
       this.el.detail.hidden = true;
       this.patch(this.el.detail, '');
@@ -149,6 +335,19 @@ export class CardsUi {
     const play = cardPlayability(this.map, state, me, c);
     const warnings = play.ok ? cardWarnings(this.map, me, c) : [];
     const when = [t(`duration.${def.duration}`), def.trigger ? t(`trigger.${def.trigger}`) : ''].filter(Boolean).join(' · ');
+    if (this.confirmUid === c.uid) {
+      // Gunung Meletus: no picker, a confirmation that names the effect (ui-flow §7 point 6).
+      const sum = impactSummary(state, me, def);
+      const skipped = sum.skipped.map((x) => t('confirm.skipped', { name: state.players.find((p) => p.id === x.id)?.name ?? x.id, label: x.label ? t(`target.label.${x.label}`).toLowerCase() : '' }).trim());
+      const text = t('confirm.all', { hit: sum.hit, total: sum.total }) + (skipped.length ? ` (${skipped.join(', ')})` : '');
+      this.el.detail.hidden = false;
+      this.patch(this.el.detail, `<div class="detail-card">${cardFace(def)}
+        <div class="detail-text"><h3>${esc(t(def.nameKey))}</h3><p data-testid="confirm-text">${esc(text)}</p></div>
+        <div class="detail-actions">
+          <button class="ok" data-card-action="confirm-yes" data-testid="btn-confirm-yes">${t('confirm.yes')}</button>
+          <button data-card-action="confirm-no" data-testid="btn-confirm-no">${t('confirm.no')}</button></div></div>`);
+      return;
+    }
     const html = `<div class="detail-card">
       ${cardFace(def)}
       <div class="detail-text">

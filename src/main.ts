@@ -142,7 +142,7 @@ async function boot(): Promise<void> {
       onPlayAgain: () => newMatch(),
     });
     cardsUi = new CardsUi(hudEl, map, HUMAN_ID, {
-      onPlay: (uid) => human.submit({ type: 'playCard', playerId: HUMAN_ID, cardUid: uid }),
+      onPlay: (uid, targetId) => human.submit({ type: 'playCard', playerId: HUMAN_ID, cardUid: uid, ...(targetId ? { targetId } : {}) }),
       onMark: (uid) => human.submit({ type: 'markCard', playerId: HUMAN_ID, cardUid: uid }),
       onConfirm: () => human.submit({ type: 'confirmCards', playerId: HUMAN_ID }),
     });
@@ -164,6 +164,8 @@ async function boot(): Promise<void> {
       }
     }
     hud.showEvents(state, events);
+    cardsUi.onEvents(state, events);
+    for (const e of events) if (e.type === 'actionRejected') cardsUi.onRejected(state, e.action, e.reason);
     onStateChanged(state);
   }
 
@@ -232,7 +234,11 @@ async function boot(): Promise<void> {
   window.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType === 'touch' ? 'touch' : 'mouse'; }, { capture: true });
   window.addEventListener('keydown', (e) => {
     if (e.repeat) return;
-    if (e.code === 'Escape' && session.state.status === 'running') setPaused(!paused);
+    if (e.code === 'Escape' && session.state.status === 'running') {
+      // Esc closes a card popover (detail, picker, confirmation) first; only then does it pause.
+      if (!paused && cardsUi.closeCardPopovers()) return;
+      setPaused(!paused);
+    }
     else if (e.code === 'Enter' && !paused && !host.isOpen) {
       const p = me();
       if (p && canStartAttempt(session.state, p) === null) human.submit({ type: 'startAttempt', playerId: HUMAN_ID });

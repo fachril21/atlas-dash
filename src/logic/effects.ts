@@ -1,7 +1,8 @@
 /**
  * Effect engine (cards.md §2, §4 and "Urutan resolusi saat Mulai"): interprets a card's `ops`.
- * Pure functions only. CP4a activates boost (self) cards; sabotage/defensive ops exist as data
- * but are never resolved here.
+ * Pure functions only. Sabotage cards that sit in a player's `pending` zone are resolved here
+ * exactly like boost cards (the snapshot sums everything, so the order cards were played in
+ * never matters, §2.3); how they get there is in cardflow.ts / sabotage.ts.
  *
  * Resolution at Mulai (snapshot): (1) take the pending next_minigame cards, (2) sum and clamp
  * difficultyShift, (3) merge modifiers (timeDelta summed then clamped so base+total is 10-40 s,
@@ -11,6 +12,7 @@
 import { getCard, type CardDef } from './cards';
 import { regionDifficulty, type Difficulty, type MapGraph } from './map';
 import type { MinigameModifier } from './minigames/types';
+import { activeDefense, isDefense, sabotagePlayability } from './sabotage';
 import type { CardInstance, GameState, PlayerState } from './state';
 
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard'];
@@ -54,7 +56,9 @@ export function resolveAttemptEffects(
   const onFail = { noCooldown: false, cooldownDeltaMs: 0 };
   const onWin = { pickDelta: 0, winMultiplier: 1 };
 
-  for (const def of defs) {
+  // Every merge below is commutative; sorting by id also removes float-product order effects.
+  const ordered = defs.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const def of ordered) {
     for (const o of def.ops) {
       if (def.trigger === 'onFail') {
         if (o.op === 'noCooldown') onFail.noCooldown = true;
@@ -95,11 +99,16 @@ export function resolveAttemptEffects(
 }
 
 export type UnplayableReason =
-  | 'phaseB' // sabotage/defensive: not available in CP4a
   | 'onlyCooldown'
   | 'pickTargetFirst'
   | 'noFinal'
   | 'maxStacks'
+  | 'defenseActive' // Payung / Cermin already active (max 1 defence card, DR-40)
+  | 'noOpponents'
+  | 'allEmpty' // Copet: every opponent has an empty hand
+  | 'allFull' // Q2: every opponent already holds 2 sabotage cards
+  | 'allStacked' // every opponent already has this card pending (maxStacks)
+  | 'noValidTarget' // mixed reasons
   | 'busy'; // minigame running, or a card/discard screen is open
 
 export type CardWarning = 'santaiEasy' | 'olehFinal';
@@ -117,18 +126,22 @@ export function pendingCount(p: PlayerState, defId: string): number {
   return p.pending.filter((c) => c.defId === defId).length;
 }
 
-/** playableWhen / maxStacks / phase / lock rules (§1, §2.1, DR-30, DR-31). */
+/** playableWhen / maxStacks / target / lock rules (§1, §2.1, §2.2.1, DR-30, DR-31). */
 export function cardPlayability(map: MapGraph, state: Readonly<GameState>, p: PlayerState, card: CardInstance): Playability {
   const def = getCard(card.defId);
   const no = (reason: UnplayableReason): Playability => ({ ok: false, reason });
   if (state.status !== 'running' || p.phase !== 'idle' || cardScreenOpen(p)) return no('busy');
-  if (def.phase !== 'a') return no('phaseB');
+  if (def.type === 'sabotage') {
+    const sp = sabotagePlayability(state, p, def);
+    if (!sp.ok) return no(sp.reason);
+  }
+  if (isDefense(def) && activeDefense(p)) return no('defenseActive');
   if (def.playableWhen === 'cooldown' && state.timeMs >= p.cooldownUntilMs) return no('onlyCooldown');
   if (def.playableWhen === 'hasTarget') {
     if (!p.targetId) return no('pickTargetFirst');
     if (map.finalRegions.has(p.targetId)) return no('noFinal');
   }
-  if (def.maxStacks !== null && def.duration !== 'instant' && pendingCount(p, def.id) >= def.maxStacks) return no('maxStacks');
+  if (def.type === 'boost' && def.maxStacks !== null && def.duration !== 'instant' && pendingCount(p, def.id) >= def.maxStacks) return no('maxStacks');
   return { ok: true };
 }
 

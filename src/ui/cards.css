@@ -208,3 +208,52 @@
 
 /* Make room for pending row + hand under the target panel. */
 .target-panel { bottom: calc(8px + var(--safe-bottom) + var(--hand-h) + var(--pending-h) + 14px) !important; }
+
+/* Target picker (ui-flow §7): one opponent per row, 1 column, rows >= 56 px. */
+.card-screen.picker { width: min(480px, 100%); }
+.picker-list { display: grid; gap: 8px; margin-bottom: 12px; }
+#hud .cards-root button.picker-row {
+  display: grid;
+  grid-template-columns: 14px 2.2em 1fr auto;
+  grid-template-areas: 'dot rank name lead' 'meta meta meta meta' 'label label label label' 'sent sent sent sent';
+  gap: 2px 8px;
+  align-items: center;
+  min-height: 64px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 3px solid #d1495b;
+  border-radius: 16px;
+  background: #fff;
+  color: #23324a;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+}
+#hud .cards-root button.picker-row:hover:not(:disabled) { background: #fff1f3; }
+#hud .cards-root button.picker-row.dim { opacity: 0.5; border-style: dashed; border-color: #9aa9bb; cursor: not-allowed; background: #eef2f6; }
+.picker-row .dot { grid-area: dot; }
+.picker-row .prank { grid-area: rank; font-weight: 800; opacity: 0.7; }
+.picker-row .pname { grid-area: name; font-weight: 800; }
+.picker-row .pleader { grid-area: lead; font-size: 0.75em; padding: 2px 8px; border-radius: 999px; background: #ffd166; font-weight: 800; }
+.picker-row .pmeta { grid-area: meta; font-size: 0.85em; font-weight: 600; }
+.picker-row .plabel { grid-area: label; font-size: 0.9em; font-weight: 800; color: #b0412e; }
+.picker-row .psent { grid-area: sent; font-size: 0.8em; font-weight: 800; color: #d1495b; }
+#hud .cards-root button.picker-cancel { min-width: 140px; background: #6b7a90; }
+
+/* Card toasts (sabotage landed / blocked / reflected, Copet). */
+.card-toasts {
+  position: absolute;
+  left: 50%;
+  top: calc(172px + var(--safe-top));
+  transform: translateX(-50%);
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  width: min(440px, calc(100vw - 24px));
+  pointer-events: none;
+  z-index: 6;
+}
+.ctoast { margin: 0; padding: 8px 16px; border-radius: 16px; font-weight: 800; background: #23324a; color: #fff; text-align: center; }
+.ctoast.bad { background: #b0412e; }
+.ctoast.good { background: #1c7d52; }

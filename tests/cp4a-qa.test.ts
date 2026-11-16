@@ -1,8 +1,8 @@
 /**
  * CP4a QA: extra tests on the riskiest card areas (card loss/duplication, stacking, trigger
  * consumption, Tiket Pesawat, Ojek Kilat at FINAL, N clamp, determinism).
- * Tests that document a confirmed bug use `it.fails` (they pass while the bug exists and
- * start failing, i.e. get noticed, once it is fixed). See docs/qa/cp4a-report.md.
+ * The two former `it.fails` tests (QA-CP4a-01, QA-CP4a-02) are normal assertions since CP4b.
+ * See docs/qa/cp4a-report.md.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -58,18 +58,19 @@ const give = (s: GameState, id: string, playerId = 'p1'): GameState => run(s, [{
 const uidOf = (s: GameState, defId: string, playerId = 'p1'): string => P(s, playerId).hand.find((c) => c.defId === defId)!.uid;
 const play = (s: GameState, defId: string, playerId = 'p1'): GameState =>
   run(s, [{ type: 'playCard', playerId, cardUid: uidOf(s, defId, playerId) }]);
-const settle = (s: GameState): GameState => {
-  for (const p of s.players) while (P(s, p.id).offer || P(s, p.id).discard) s = run(s, [auto(p.id)]);
+const settle = (s: GameState, only?: string): GameState => {
+  for (const p of s.players) if (!only || p.id === only) while (P(s, p.id).offer || P(s, p.id).discard) s = run(s, [auto(p.id)]);
   return s;
 };
-const emptyHands = (s: GameState): GameState => ({ ...s, players: s.players.map((p) => ({ ...p, hand: [] })) });
+const emptyHands = (s: GameState, only?: string): GameState => ({ ...s, players: s.players.map((p) => (!only || p.id === only ? { ...p, hand: [] } : p)) });
+// Only the conquering player's screens are settled and hand emptied; the others keep theirs.
 const conquer = (s: GameState, regions: string[], playerId = 'p1'): GameState => {
   for (const r of regions) {
     s = run(s, [sel(playerId, r)]);
-    s = settle(run(s, [start(playerId), res(true, playerId)]));
-    if (s.status === 'running') s = settle(run(s, [start(playerId), res(true, playerId)]));
+    s = settle(run(s, [start(playerId), res(true, playerId)]), playerId);
+    if (s.status === 'running') s = settle(run(s, [start(playerId), res(true, playerId)]), playerId);
   }
-  return emptyHands(s);
+  return emptyHands(s, playerId);
 };
 const TO_GATE = ['medan', 'jakarta', 'toraja'];
 
@@ -162,16 +163,25 @@ describe('card conservation / duplication (fuzz)', () => {
     expect(P(s).hand.map((c) => c.defId)).toEqual(['teropong', 'teropong', 'teropong', 'jam_pasir', 'santai_dulu']);
   });
 
-  it('one huge tick resolves the offer first, then the discard screen gets a fresh 15 s (no chain skip)', () => {
+  it('QA-CP4a-01: timeouts run at their exact expiresAtMs, so the discard screen chained after an offer timeout starts at the offer expiry', () => {
     let s = game();
     for (let i = 0; i < 5; i++) s = give(s, 'teropong');
-    s = run(s, [{ type: 'debugForceOffer', playerId: 'p1', cardIds: ['jam_pasir', 'santai_dulu'], pick: 2 }, tick(60_000)]);
+    s = run(s, [{ type: 'debugForceOffer', playerId: 'p1', cardIds: ['jam_pasir', 'santai_dulu'], pick: 2 }, tick(20_000)]);
     expect(P(s).offer).toBeNull();
     expect(P(s).discard).not.toBeNull();
+    expect(P(s).discard!.expiresAtMs).toBe(CARD_SCREEN_MS * 2); // opened at 15 s, not at the 20 s tick
     expect(P(s).hand).toHaveLength(7);
-    s = run(s, [tick(15_000)]);
+    s = run(s, [tick(10_000)]);
     expect(P(s).discard).toBeNull();
     expect(P(s).hand).toHaveLength(5);
+    // the same in one huge tick
+    let b = game();
+    for (let i = 0; i < 5; i++) b = give(b, 'teropong');
+    b = run(b, [{ type: 'debugForceOffer', playerId: 'p1', cardIds: ['jam_pasir', 'santai_dulu'], pick: 2 }, tick(60_000)]);
+    expect(P(b).offer).toBeNull();
+    expect(P(b).discard).toBeNull();
+    expect(P(b).hand).toHaveLength(5);
+    expect(P(b).hand.map((c) => c.defId)).toEqual(P(s).hand.map((c) => c.defId));
   });
 });
 
@@ -196,9 +206,8 @@ describe('pause (GameSession)', () => {
 
 // ------------------------------------------------------------------------------------------
 describe('match end while a card screen is open', () => {
-  // BUG QA-CP4a-02 (low): closeCardScreens() nulls the offer, so the 5 offered instances belong to
-  // no zone any more (cards.md §4 invariant: every instance is in exactly one zone). Passes while the bug exists.
-  it.fails('another player winning closes the offer and the offered cards end in `discarded` (zone accounting)', () => {
+  // QA-CP4a-02 (fixed in CP4b): the offered instances move to `discarded` when the match ends.
+  it('another player winning closes the offer and the offered cards end in `discarded` (zone accounting)', () => {
     let s = game(3);
     s = run(s, [sel('p1', 'medan'), start('p1'), res(true, 'p1')]);
     const offered = P(s).offer!.cards.map((c) => c.uid);
@@ -540,10 +549,8 @@ describe('determinism', () => {
     expect(JSON.stringify(replay(map, fresh(4321), session.all))).toBe(JSON.stringify(session.state));
   });
 
-  // BUG QA-CP4a-03: GameSession.actionLog folds consecutive ticks, which moves the moment a card
-  // screen times out (and so the 15 s of the discard screen that follows). Replay from the log
-  // diverges. Passes while the bug exists.
-  it.fails('replaying session.actionLog (folded ticks) reproduces the final state', () => {
+  // QA-CP4a-01 (fixed in CP4b): card screens expire at their exact expiresAtMs, so folded ticks replay identically.
+  it('replaying session.actionLog (folded ticks) reproduces the final state', () => {
     const session = scripted(4321);
     expect(JSON.stringify(replay(map, fresh(4321), session.actionLog.map((l) => l.action)))).toBe(JSON.stringify(session.state));
   });

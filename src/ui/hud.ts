@@ -7,7 +7,9 @@ import {
   cooldownRemainingMs,
   localize,
   ranking,
+  getCard,
   regionDifficulty,
+  sabotageSlotsUsed,
   totalWins,
   type GameEvent,
   type GameState,
@@ -15,6 +17,7 @@ import {
   type PlayerState,
 } from '../logic';
 import { PLAYER_CSS_COLORS } from '../render/palette';
+import { slotDots, statusIcon, statusText } from './status';
 import { t } from './strings';
 import './hud.css';
 
@@ -129,13 +132,19 @@ export class Hud {
     const total = totalWins(this.map);
     const rows = ranking(state).map((p, i) => {
       const pct = Math.round((1 - p.remainingWins / total) * 100);
-      return `<li class="prow${p.id === this.humanId ? ' me' : ''}" data-testid="progress-row-${p.id}" data-remaining="${p.remainingWins}">
+      // DR-33: everyone sees how many sabotage slots are filled; card names only the target (own
+      // pending row) and the sender (the small chips here) see.
+      const slots = sabotageSlotsUsed(p);
+      const sent = p.id === this.humanId ? [] : p.pending.filter((c) => c.source === this.humanId && getCard(c.defId).type === 'sabotage');
+      return `<li class="prow${p.id === this.humanId ? ' me' : ''}" data-testid="progress-row-${p.id}" data-remaining="${p.remainingWins}" data-slots="${slots}">
         <span class="rank">${i + 1}</span>
         <span class="dot" style="background:${PLAYER_CSS_COLORS[p.colorIndex % PLAYER_CSS_COLORS.length]}"></span>
         <span class="pname">${esc(p.id === this.humanId ? t('you') : p.name)}</span>
         <span class="bar"><span style="width:${pct}%"></span></span>
         <span class="left">${t('race.winsLeft', { n: p.remainingWins })}</span>
-        <span class="status" title="${this.statusText(state, p)}">${this.statusIcon(state, p)}</span></li>`;
+        <span class="slots${slots > 0 ? ' hit' : ''}" data-testid="slots-${p.id}" title="${t('slots.label')}" aria-label="${t('slots.label')}: ${slots}/2">${slots > 0 ? '⚡' : ''}${slotDots(slots)}</span>
+        <span class="status" title="${statusText(state, p)}">${statusIcon(state, p)}</span>
+        ${sent.length ? `<span class="sent" data-testid="sent-${p.id}">${sent.map((c) => `${getCard(c.defId).icon} ${esc(t(getCard(c.defId).nameKey))}`).join(', ')}</span>` : ''}</li>`;
     });
     this.patch(this.el.progress, rows.join(''));
     this.renderPanel(state);
@@ -228,20 +237,6 @@ export class Hud {
 
   private me(state: Readonly<GameState>): PlayerState | undefined {
     return state.players.find((p) => p.id === this.humanId);
-  }
-
-  private statusIcon(state: Readonly<GameState>, p: PlayerState): string {
-    if (p.phase === 'finished') return '🏁';
-    if (p.phase === 'playing') return '🎮';
-    if (cooldownRemainingMs(state, p) > 0) return '⏱';
-    return p.targetId ? '▶' : '🗺';
-  }
-
-  private statusText(state: Readonly<GameState>, p: PlayerState): string {
-    if (p.phase === 'finished') return t('race.status.finished');
-    if (p.phase === 'playing') return t('race.status.playing');
-    if (cooldownRemainingMs(state, p) > 0) return t('race.status.cooldown');
-    return t(p.targetId ? 'race.status.ready' : 'race.status.choosing');
   }
 
   private patch(el: HTMLElement, html: string): void {

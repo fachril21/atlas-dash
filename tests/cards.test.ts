@@ -132,9 +132,9 @@ describe('offer algorithm (§3.1, DR-26)', () => {
   const cp4a = offerPool('a');
   const w = LEADER_WEIGHTS;
 
-  it('CP4a pool: 9 boost cards in table order; tierWeights is the leader row for everyone', () => {
+  it('CP4a pool: 9 boost cards in table order; the leader row is gap 0', () => {
     expect(cp4a).toHaveLength(9);
-    expect(tierWeights({ id: 'x' })).toEqual({ weights: { common: 75, rare: 22, epic: 3 }, guaranteeRarePlus: false });
+    expect(tierWeights(0)).toEqual({ weights: { common: 75, rare: 22, epic: 3 }, guaranteeRarePlus: false });
   });
 
   it('1..2000 seeds: 5 distinct boost cards, all from the pool, terminates', () => {
@@ -573,14 +573,6 @@ describe('playing boost cards (playableWhen, locks)', () => {
     s = give(give(s, 'teropong'), 'teropong');
     s = play(s, 'teropong');
     expect(cardPlayability(map, s, P(s), P(s).hand.find((c) => c.defId === 'teropong')!)).toEqual({ ok: false, reason: 'maxStacks' });
-  });
-
-  it('phase b cards (sabotage, Payung, Cermin) can be held but never played in CP4a', () => {
-    for (const id of ['payung_tameng', 'cermin_balik', 'jam_rusak', 'copet', 'gunung_meletus']) {
-      const s = give(game(), id);
-      expect(reason(s, { type: 'playCard', playerId: 'p1', cardUid: uidOf(s, id) }), id).toBe('card-unplayable');
-      expect(cardPlayability(map, s, P(s), P(s).hand[0]!).reason).toBe('phaseB');
-    }
   });
 
   it('Kopi Tubruk: only during cooldown; clears it; Mulai works at once', () => {

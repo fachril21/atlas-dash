@@ -76,7 +76,7 @@ const ROWS: Row[] = [
   { id: 'ojek_kilat', icon: '🛵', type: 'boost', rarity: 'rare', phase: 'a', duration: 'next_minigame', trigger: 'onWin', maxStacks: 1, ops: [{ op: 'winMultiplier', mult: 2 }] },
   { id: 'cermin_balik', icon: '🪞', type: 'boost', rarity: 'epic', phase: 'b', duration: 'next_sabotage', maxStacks: 1, ops: [{ op: 'reflectSabotage' }] },
   { id: 'tiket_pesawat', icon: '✈️', type: 'boost', rarity: 'epic', phase: 'a', duration: 'instant', maxStacks: null, playableWhen: 'hasTarget', ops: [{ op: 'skipRegion' }] },
-  // Sabotage (9): data only in CP4a (phase 'b', never offered)
+  // Sabotage (9): active from CP4b
   { id: 'jam_rusak', icon: '⏱️', type: 'sabotage', rarity: 'common', base: true, phase: 'b', target: 'opponent', duration: 'next_minigame', maxStacks: 2, ops: [mod({ kind: 'timeDelta', seconds: -5 })] },
   { id: 'badai', icon: '🌪️', type: 'sabotage', rarity: 'rare', base: true, phase: 'b', target: 'opponent', duration: 'next_minigame', maxStacks: 1, ops: [{ op: 'difficultyShift', delta: 1 }] },
   { id: 'kabut_asap', icon: '🌫️', type: 'sabotage', rarity: 'common', base: true, phase: 'b', target: 'opponent', duration: 'next_minigame', maxStacks: 1, ops: [mod({ kind: 'fog' })] },
@@ -121,9 +121,12 @@ export function hasCard(id: string): boolean {
   return BY_ID.has(id);
 }
 
-/** CP4a offer pool: phase 'a' cards (the 9 boost cards), in §2 table order. */
-export function offerPool(phase: CardPhase = 'a'): CardDef[] {
-  return CARDS.filter((c) => c.phase === phase);
+/**
+ * Offer pool, in §2 table order. CP4b: all 20 cards (no argument). `offerPool('a')` is the CP4a
+ * pool (the 9 phase-a boost cards), kept for the old tests.
+ */
+export function offerPool(phase?: CardPhase): CardDef[] {
+  return phase ? CARDS.filter((c) => c.phase === phase) : CARDS.slice();
 }
 
 export const RARITY_RANK: Readonly<Record<Rarity, number>> = { common: 0, rare: 1, epic: 2 };

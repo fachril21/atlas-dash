@@ -25,6 +25,8 @@ export interface CardInstance {
   uid: string;
   defId: string;
   seq: number;
+  /** Sabotage in a `pending` zone: the player who sent it (the Cermin owner for a reflection). */
+  source?: string;
 }
 
 /** The pick screen (cards.md §3, ui-flow §5). Timer is game time, so pause freezes it. */
@@ -94,11 +96,16 @@ export interface PlayerState {
   pickRng: RngState;
   /** "cards" stream state (offers). */
   cardsRng: RngState;
-  /** Hand (max 5, up to 9 while the discard screen is open). */
+  /** "copet" stream state (Copet steals, cards.md §2.2.4). */
+  copetRng: RngState;
+  /** Hand (max 5; more only while the discard screen is open or the owner is in a minigame). */
   hand: CardInstance[];
   /** Next handSeq to hand out. */
   nextHandSeq: number;
-  /** Played next_minigame cards waiting for (or inside) the next attempt. */
+  /**
+   * Played next_minigame cards waiting for (or inside) the next attempt, sabotage cards sent to
+   * this player (each carries `source`), and an active defence card (Payung / Cermin).
+   */
   pending: CardInstance[];
   /** Spent / discarded / unpicked cards. */
   discarded: CardInstance[];
@@ -186,6 +193,7 @@ export function createInitialState(
         attempt: null,
         pickRng: createStream(matchSeed, p.id, 'minigamePick').getState(),
         cardsRng: createStream(matchSeed, p.id, 'cards').getState(),
+        copetRng: createStream(matchSeed, p.id, 'copet').getState(),
         hand: [],
         nextHandSeq: 1,
         pending: [],

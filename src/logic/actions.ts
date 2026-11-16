@@ -12,8 +12,11 @@ export type GameAction =
   | { type: 'startAttempt'; playerId: string }
   /** Outcome of the running attempt (from the minigame host, bot simulation or a test hook). */
   | { type: 'minigameResult'; playerId: string; passed: boolean; timeTakenMs?: number }
-  /** Play a card from the hand (CP4a: boost cards only). */
-  | { type: 'playCard'; playerId: string; cardUid: string }
+  /**
+   * Play a card from the hand. Sabotage cards with target `opponent` need `targetId`
+   * (validated again here, cards.md §2.2.1(c)); `all_opponents` and self cards ignore it.
+   */
+  | { type: 'playCard'; playerId: string; cardUid: string; targetId?: string }
   /** Toggle a mark on the pick screen (card to take) or the discard screen (card to drop). */
   | { type: 'markCard'; playerId: string; cardUid: string }
   /** "Ambil" / "Buang": needs exactly N (or the overflow count) marked. */
@@ -26,6 +29,14 @@ export type GameAction =
   | { type: 'debugClearHand'; playerId: string }
   /** DEBUG ONLY (QA hooks): open an offer now, optionally with fixed card ids and pick count. */
   | { type: 'debugForceOffer'; playerId: string; cardIds?: string[]; pick?: number };
+
+/**
+ * - landed: pending on the target. blocked: Payung ate it. reflected: pending on the sender.
+ * - reflectBurned: reflected but the sender was full / at maxStacks.
+ * - stolen: Copet took a card. reflectStolen / reflectEmpty: the Cermin owner stole from the sender
+ *   (or the sender's hand was empty).
+ */
+export type SabotageOutcome = 'landed' | 'blocked' | 'reflected' | 'reflectBurned' | 'stolen' | 'reflectStolen' | 'reflectEmpty';
 
 export type RejectReason =
   | 'bad-tick'
@@ -43,6 +54,7 @@ export type RejectReason =
   | 'cards-open'
   | 'no-card'
   | 'card-unplayable'
+  | 'bad-target'
   | 'no-cards-screen'
   | 'bad-selection'
   | 'unknown-card';
@@ -67,6 +79,17 @@ export type GameEvent =
   | { type: 'discardRequired'; playerId: string; count: number }
   | { type: 'cardsDiscarded'; playerId: string; cardIds: string[]; auto: boolean }
   | { type: 'cardPlayed'; playerId: string; uid: string; cardId: string }
+  | {
+      type: 'sabotagePlayed';
+      senderId: string;
+      /** The opponent the card was aimed at (for a reflection, the Cermin owner). */
+      targetId: string;
+      cardId: string;
+      outcome: SabotageOutcome;
+    }
+  | { type: 'cardStolen'; thiefId: string; victimId: string; cardId: string; uid: string; reflected: boolean }
+  /** The discard screen closed because a steal made it unnecessary (DR-27). */
+  | { type: 'discardCancelled'; playerId: string }
   | { type: 'cardsSpent'; playerId: string; cardIds: string[]; effective: boolean }
   | { type: 'handChanged'; playerId: string }
   | { type: 'pendingEffectsChanged'; playerId: string }

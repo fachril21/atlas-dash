@@ -3,18 +3,32 @@
  * This is the function an authoritative server will run.
  */
 import type { GameAction, GameEvent, RejectReason } from './actions';
-import { getCard, hasCard as hasCardId, offerPool } from './cards';
+import {
+  addToHand,
+  autoResolve,
+  closeCardScreens,
+  discardNeeded,
+  drawOffer,
+  ensureDiscard,
+  newInstance,
+  openOffer,
+  playSabotage,
+  resolveDiscard,
+  resolveOffer,
+  spendSnapshot,
+} from './cardflow';
+import { getCard, hasCard as hasCardId } from './cards';
 import { cardPlayability, cardScreenOpen, resolveAttemptEffects } from './effects';
 import { outgoing, regionDifficulty, type MapGraph } from './map';
 import { MINIGAME_LOGIC, pickMinigame } from './minigames';
-import { autoDiscard, autoPick, buildOffer, CARD_SCREEN_MS, HAND_MAX, pickCount, tierWeights } from './offers';
-import { Rng, streamSeed } from './rng';
+import { pickCount } from './offers';
+import { checkTarget, sabotagePlayability } from './sabotage';
+import { streamSeed } from './rng';
 import {
   COOLDOWN_MS,
   INTRO_MS,
   remainingWinsFor,
   RETRY_INTRO_MS,
-  type CardInstance,
   type GameState,
   type PlayerState,
 } from './state';
@@ -71,86 +85,7 @@ export function selectableTargets(map: MapGraph, state: Readonly<GameState>, p: 
   return outgoing(map, p.nodeId).filter((id) => id !== map.finishId);
 }
 
-// ---------------------------------------------------------------- cards (mutate a cloned state)
-
-function newInstance(state: GameState, defId: string): CardInstance {
-  return { uid: `c${state.nextCardUid++}`, defId, seq: 0 };
-}
-
-/** Number of cards the player must still drop to get back to HAND_MAX. */
-export function discardNeeded(p: Readonly<PlayerState>): number {
-  return Math.max(0, p.hand.length - HAND_MAX);
-}
-
-/** New cards enter the hand in slot order with rising handSeq; overflow opens the discard screen. */
-function addToHand(state: GameState, p: PlayerState, cards: CardInstance[], events: GameEvent[]): void {
-  const added = cards.map((c) => ({ ...c, seq: p.nextHandSeq++ }));
-  p.hand.push(...added);
-  events.push({ type: 'handChanged', playerId: p.id });
-  if (p.hand.length > HAND_MAX) {
-    p.discard = { newUids: added.map((c) => c.uid), marked: [], expiresAtMs: state.timeMs + CARD_SCREEN_MS };
-    events.push({ type: 'discardRequired', playerId: p.id, count: discardNeeded(p) });
-  }
-}
-
-function openOffer(state: GameState, p: PlayerState, cards: CardInstance[], pick: number, events: GameEvent[]): void {
-  p.offer = { cards, pick: Math.min(pick, cards.length), marked: [], expiresAtMs: state.timeMs + CARD_SCREEN_MS };
-  events.push({ type: 'cardOffered', playerId: p.id, cardIds: cards.map((c) => c.defId), pick: p.offer.pick });
-}
-
-/** Draw the 5-card offer from the player's "cards" stream (CP4a pool = phase 'a', §3.2). */
-function drawOffer(state: GameState, p: PlayerState): CardInstance[] {
-  const tier = tierWeights(p);
-  const rng = Rng.fromState(p.cardsRng);
-  const defs = buildOffer(offerPool('a'), tier.weights, rng, tier.guaranteeRarePlus);
-  p.cardsRng = rng.getState();
-  return defs.map((d) => newInstance(state, d.id));
-}
-
-function resolveOffer(state: GameState, p: PlayerState, uids: string[], auto: boolean, events: GameEvent[]): void {
-  const offer = p.offer as NonNullable<PlayerState['offer']>;
-  const taken = offer.cards.filter((c) => uids.includes(c.uid));
-  p.discarded.push(...offer.cards.filter((c) => !uids.includes(c.uid)));
-  p.offer = null;
-  events.push({ type: 'cardsPicked', playerId: p.id, cardIds: taken.map((c) => c.defId), auto });
-  addToHand(state, p, taken, events);
-}
-
-function resolveDiscard(p: PlayerState, uids: string[], auto: boolean, events: GameEvent[]): void {
-  const dropped = p.hand.filter((c) => uids.includes(c.uid));
-  p.hand = p.hand.filter((c) => !uids.includes(c.uid));
-  p.discarded.push(...dropped);
-  p.discard = null;
-  events.push({ type: 'cardsDiscarded', playerId: p.id, cardIds: dropped.map((c) => c.defId), auto });
-  events.push({ type: 'handChanged', playerId: p.id });
-}
-
-function autoResolve(state: GameState, p: PlayerState, events: GameEvent[]): void {
-  if (p.offer) {
-    resolveOffer(state, p, autoPick(p.offer.cards.map((c) => ({ uid: c.uid, rarity: getCard(c.defId).rarity })), p.offer.marked, p.offer.pick), true, events);
-  } else if (p.discard) {
-    const cards = p.hand.map((c) => ({ uid: c.uid, rarity: getCard(c.defId).rarity, seq: c.seq }));
-    resolveDiscard(p, autoDiscard(cards, p.discard.marked, discardNeeded(p)), true, events);
-  }
-}
-
-/** Spend the snapshot cards of a finished attempt: they leave `pending` for `discarded`. */
-function spendSnapshot(p: PlayerState, uids: string[], effective: boolean, events: GameEvent[]): void {
-  if (uids.length === 0) return;
-  const spent = p.pending.filter((c) => uids.includes(c.uid));
-  p.pending = p.pending.filter((c) => !uids.includes(c.uid));
-  p.discarded.push(...spent);
-  events.push({ type: 'cardsSpent', playerId: p.id, cardIds: spent.map((c) => c.defId), effective });
-  events.push({ type: 'pendingEffectsChanged', playerId: p.id });
-}
-
-/** DR-06: when the match ends, open card screens of the others close without a result. */
-function closeCardScreens(state: GameState): void {
-  for (const q of state.players) {
-    q.offer = null;
-    q.discard = null;
-  }
-}
+export { discardNeeded };
 
 export function applyAction(map: MapGraph, prev: GameState, action: GameAction): ReduceResult {
   const reject = (reason: RejectReason): ReduceResult => ({
@@ -163,16 +98,25 @@ export function applyAction(map: MapGraph, prev: GameState, action: GameAction):
     const state = cloneState(prev);
     const events: GameEvent[] = [];
     const before = state.timeMs;
-    state.timeMs += action.dtMs;
+    const target = before + action.dtMs;
+    // QA-CP4a-01: card screens time out at their exact expiresAtMs on the game clock, whatever the
+    // tick size (so tick(a + b) == tick(a); tick(b) and an actionLog with folded ticks replays
+    // identically). A screen opened by a timeout in this tick starts at that moment.
+    if (prev.status === 'running') {
+      for (;;) {
+        let next: { p: PlayerState; at: number } | null = null;
+        for (const p of state.players) {
+          const at = (p.offer ?? p.discard)?.expiresAtMs;
+          if (at !== undefined && at <= target && (next === null || at < next.at)) next = { p, at };
+        }
+        if (!next) break;
+        state.timeMs = Math.max(state.timeMs, next.at);
+        autoResolve(state, next.p, events);
+      }
+    }
+    state.timeMs = target;
     for (const p of state.players) {
-      if (p.cooldownUntilMs > before && p.cooldownUntilMs <= state.timeMs) {
-        events.push({ type: 'cooldownEnded', playerId: p.id });
-      }
-      // Card screens time out on game time (pause freezes them): DR-25 auto-pick / auto-discard.
-      if (prev.status === 'running') {
-        if (p.offer && state.timeMs >= p.offer.expiresAtMs) autoResolve(state, p, events);
-        if (p.discard && state.timeMs >= p.discard.expiresAtMs) autoResolve(state, p, events);
-      }
+      if (p.cooldownUntilMs > before && p.cooldownUntilMs <= target) events.push({ type: 'cooldownEnded', playerId: p.id });
     }
     return { state, events };
   }
@@ -221,8 +165,10 @@ export function applyAction(map: MapGraph, prev: GameState, action: GameAction):
       // DR-48: every pending next_minigame card is applied to this attempt (snapshot at Mulai).
       const minigameId = p.nextMinigameId as string;
       const baseDifficulty = regionDifficulty(map, targetId);
+      // Defence cards (Payung / Cermin) wait in `pending` for a sabotage, not for an attempt.
+      const snapshot = p.pending.filter((c) => getCard(c.defId).duration === 'next_minigame');
       const eff = resolveAttemptEffects(
-        p.pending.map((c) => getCard(c.defId)),
+        snapshot.map((c) => getCard(c.defId)),
         baseDifficulty,
         MINIGAME_LOGIC.find((m) => m.id === minigameId)?.baseDurationMs ?? 20_000,
       );
@@ -231,7 +177,7 @@ export function applyAction(map: MapGraph, prev: GameState, action: GameAction):
         targetId,
         baseDifficulty,
         modifiers: eff.modifiers,
-        cardUids: p.pending.map((c) => c.uid),
+        cardUids: snapshot.map((c) => c.uid),
         onFail: eff.onFail,
         onWin: eff.onWin,
         seed: streamSeed(state.matchSeed, p.id, `minigameParams:${targetId}:${attemptIndex}`),
@@ -301,7 +247,9 @@ export function applyAction(map: MapGraph, prev: GameState, action: GameAction):
           p.nextMinigameId = pick.id;
           p.retry = false;
         }
-        // K1 / C-3: a won attempt that does not decide the match earns an offer.
+        // K1 / C-3: a won attempt that does not decide the match earns an offer. The comeback gap
+        // (§3.2) is measured now, after the pawn move of this win.
+        refreshProgress(map, state, p, events);
         const cards = drawOffer(state, p);
         openOffer(state, p, cards, pickCount(attempt.difficulty, attempt.onWin.pickDelta, cards.length), events);
       } else {
@@ -316,6 +264,7 @@ export function applyAction(map: MapGraph, prev: GameState, action: GameAction):
         });
       }
       refreshProgress(map, state, p, events);
+      ensureDiscard(state, p, events); // a steal reflected onto this player during the minigame
       return { state, events };
     }
     case 'playCard': {
@@ -324,14 +273,33 @@ export function applyAction(map: MapGraph, prev: GameState, action: GameAction):
       if (before.phase === 'playing') return reject('busy');
       if (cardScreenOpen(before)) return reject('cards-open');
       if (!cardPlayability(map, prev, before, card).ok) return reject('card-unplayable');
-      const state = cloneState(prev);
-      const p = state.players[idx] as PlayerState;
       const def = getCard(card.defId);
       const events: GameEvent[] = [];
+
+      if (def.type === 'sabotage') {
+        // Targets are validated here, on confirm, against the current state (§2.2.1 (c)).
+        let targetIds: string[];
+        if (def.target === 'all_opponents') {
+          const sp = sabotagePlayability(prev, before, def);
+          if (!sp.ok) return reject('card-unplayable');
+          targetIds = sp.validIds;
+        } else {
+          const target = prev.players.find((q) => q.id === action.targetId);
+          if (!checkTarget(prev, before, def, target).ok) return reject('bad-target');
+          targetIds = [(target as PlayerState).id];
+        }
+        const state = cloneState(prev);
+        const p = state.players[idx] as PlayerState;
+        playSabotage(state, p, card, def, targetIds, events);
+        return { state, events };
+      }
+
+      const state = cloneState(prev);
+      const p = state.players[idx] as PlayerState;
       p.hand = p.hand.filter((c) => c.uid !== card.uid);
       events.push({ type: 'cardPlayed', playerId: p.id, uid: card.uid, cardId: def.id });
       events.push({ type: 'handChanged', playerId: p.id });
-      if (def.duration === 'next_minigame') {
+      if (def.duration === 'next_minigame' || def.duration === 'next_sabotage') {
         p.pending.push(card);
         events.push({ type: 'pendingEffectsChanged', playerId: p.id });
       } else {

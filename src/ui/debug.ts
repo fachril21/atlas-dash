@@ -3,7 +3,7 @@
  *   window.__atlasTest = { getState, dispatch, forceMinigameResult, setTimeScale, events, exportLog, ... }
  * plus a small panel with the seed, time scale and an "export log" button.
  */
-import { getCard, type GameAction, type GameEvent, type GameSession, type GameState, type LoggedEvent } from '../logic';
+import { getCard, sabotageSlotsUsed, type GameAction, type GameEvent, type GameSession, type GameState, type LoggedEvent, type RejectReason } from '../logic';
 
 export interface DebugDeps {
   getSession(): GameSession;
@@ -38,6 +38,25 @@ export interface AtlasTestApi {
   forceOffer(ids?: string[], pick?: number): boolean;
   /** Resolve whichever card screen is open with the auto-pick / auto-discard rule. */
   autoResolveCards(): boolean;
+  /** CP4b: put a card in any player's hand (bots included; a bot drops extra cards at once). */
+  giveCardTo(playerId: string, cardId: string): boolean;
+  /** CP4b: any player's hand, left to right (uid, card id, handSeq). */
+  getHandOf(playerId: string): { uid: string; id: string; seq: number }[];
+  /**
+   * CP4b: everything in a player's `pending` zone: card id, type, who sent it (`source`, set for
+   * sabotage and reflections) and whether a running attempt has snapshotted it.
+   */
+  getPending(playerId: string): { uid: string; id: string; type: string; source: string | null; inAttempt: boolean }[];
+  /** CP4b: sabotage slots in use (0-2) for any player. */
+  getSabotageSlots(playerId: string): number;
+  /**
+   * CP4b: play a card from `playerId`'s hand (default: the human), by card id (first copy in hand)
+   * or uid, aimed at `targetId` for single-target sabotage. Goes through the normal reducer
+   * validation; on failure nothing changes and `reason` says why (e.g. "bad-target").
+   */
+  playCard(cardIdOrUid: string, targetId?: string, playerId?: string): { ok: boolean; reason?: RejectReason };
+  /** CP4b: alias of playCard for sabotage: the human sends `cardId` at `targetId`. */
+  playSabotage(cardIdOrUid: string, targetId?: string, playerId?: string): { ok: boolean; reason?: RejectReason };
 }
 
 declare global {
@@ -85,7 +104,28 @@ export function installDebug(deps: DebugDeps): AtlasTestApi {
       return !isRejected(deps.getSession().dispatch(action));
     },
     autoResolveCards: () => !isRejected(deps.getSession().dispatch({ type: 'autoCards', playerId: deps.human })),
+    giveCardTo: (playerId, cardId) => !isRejected(deps.getSession().dispatch({ type: 'debugGrantCard', playerId, cardId })),
+    getHandOf: (playerId) => (deps.getSession().state.players.find((p) => p.id === playerId)?.hand ?? []).map((c) => ({ uid: c.uid, id: getCard(c.defId).id, seq: c.seq })),
+    getPending: (playerId) => {
+      const p = deps.getSession().state.players.find((q) => q.id === playerId);
+      const inAttempt = new Set(p?.attempt?.cardUids ?? []);
+      return (p?.pending ?? []).map((c) => ({ uid: c.uid, id: getCard(c.defId).id, type: getCard(c.defId).type, source: c.source ?? null, inAttempt: inAttempt.has(c.uid) }));
+    },
+    getSabotageSlots: (playerId) => {
+      const p = deps.getSession().state.players.find((q) => q.id === playerId);
+      return p ? sabotageSlotsUsed(p) : 0;
+    },
+    playCard: (cardIdOrUid, targetId, playerId = deps.human) => playCardHook(cardIdOrUid, targetId, playerId),
+    playSabotage: (cardIdOrUid, targetId, playerId = deps.human) => playCardHook(cardIdOrUid, targetId, playerId),
   };
+  function playCardHook(cardIdOrUid: string, targetId: string | undefined, playerId: string): { ok: boolean; reason?: RejectReason } {
+    const p = deps.getSession().state.players.find((q) => q.id === playerId);
+    const card = p?.hand.find((c) => c.uid === cardIdOrUid) ?? p?.hand.find((c) => c.defId === cardIdOrUid);
+    if (!card) return { ok: false, reason: 'no-card' };
+    const events = deps.getSession().dispatch({ type: 'playCard', playerId, cardUid: card.uid, ...(targetId ? { targetId } : {}) });
+    const first = events[0];
+    return first?.type === 'actionRejected' && events.length === 1 ? { ok: false, reason: first.reason } : { ok: true };
+  }
   window.__atlasTest = api;
   window.atlas = { ...deps.extra, get session() { return deps.getSession(); } };
 
