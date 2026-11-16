@@ -9,7 +9,7 @@ Kriteria di bawah mengikuti dokumen desain v0.2 + keputusan C-2/C-3. Kriteria ya
 | Lapisan | Alat | Apa | Kapan jalan |
 |---|---|---|---|
 | Unit | Vitest (`tests/**/*.test.ts`, env node, sudah ada) | Logic pure: peta, gerak, cooldown, RNG, kartu, scoring minigame, bot | `npm test` tiap perubahan |
-| Smoke | Playwright (**belum terpasang**, ditambah di CP3) | Build `vite preview`, 2 project: `desktop` 1280×720 mouse, `mobile` 390×844 `hasTouch` + `isMobile` (Chromium); plus WebKit mobile di CP6 | Tiap CP, sebelum lapor |
+| Smoke | Playwright (terpasang di CP3a: `npm run test:e2e`, `playwright.config.ts`, `tests/e2e/`) | Build `vite preview`, 2 project: `desktop` 1280×720 mouse, `mobile` 390×844 `hasTouch` + `isMobile` (Chromium); plus WebKit mobile di CP6 | Tiap CP, sebelum lapor |
 | Manual | HP Android acuan + iPhone acuan (⚠DR-13), laptop desktop | Rasa, keterbacaan, performa nyata, playtest | Akhir tiap CP |
 
 Baseline 2026-11-16: `npx vitest run` → 3 file, 24 test lulus (architecture, movement, rng). Test movement lama akan diganti sesuai model target (⚠DR-01).
@@ -47,7 +47,7 @@ Baseline 2026-11-16: `npx vitest run` → 3 file, 24 test lulus (architecture, m
 | `race_target_adjacent_only` | `selectTarget` hanya diterima untuk edge keluar; non-tetangga, region yang sudah dilewati, dan arah balik ditolak dengan alasan; state tidak berubah | Unit |
 | `race_two_wins_to_enter` | Win ke-1 → `winsAtTarget=1`, pion tetap; win ke-2 → pion pindah, `winsAtTarget` reset | Unit |
 | `race_cooldown_by_difficulty` | Gagal di easy/medium/hard → cooldown 12/8/4 s game-time; Mulai ditolak sebelum habis, diterima tepat setelahnya (batas ±1 tick) | Unit |
-| `race_switch_target_rules` | Ganti target tanpa win parsial: boleh. Dengan win parsial: hanya setelah gagal, dan win parsial jadi 0. Cooldown tetap berjalan setelah ganti (⚠DR-05) | Unit |
+| `race_switch_target_rules` | Ganti target boleh kapan saja (keputusan PM, disetujui fachril). Tanpa win parsial: langsung. Dengan win parsial: UI minta konfirmasi, lalu win parsial jadi 0. Cooldown tetap berjalan setelah ganti; tidak boleh saat minigame berjalan | Unit + Smoke |
 | `race_final_auto_finish` | Menguasai Labuan Bajo atau Raja Ampat → `playerFinished` + `gameOver` di tick yang sama; aksi semua pemain ditolak setelahnya (⚠DR-06) | Unit |
 | `race_first_finisher_wins` | Dua pemain menyelesaikan region final di tick yang sama → yang diproses lebih dulu menang; hasil sama untuk seed sama | Unit |
 | `race_shared_regions` | 2–4 pemain di region/target yang sama tidak saling memblokir | Unit |
