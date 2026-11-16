@@ -35,6 +35,7 @@ A virtual real-time race across a regional map (first map: Indonesia, Sabang →
 | Q1 | Wins per region | A region needs **2 minigame wins** to be cleared (so Standard ≈ 15 min). |
 | Q2 | Sabotage cap | Max **2** pending sabotage cards on one target. |
 | Q4 | Card screen timer | Pick/discard screens have a **15 s** limit, then auto-pick. |
+| C-1 | Match length target | Standard target **~10–13 min** (median), tuned in playtest. Replaces the "≈15 min" in R5/Q1. |
 | M2 | Minigame per region | Random from the pool; difficulty follows the **region type** (e.g. mountain = hard, beach = easy). |
 | R8 | Comeback | Trailing players get better cards. |
 | R9 | Card hand | Max 5 cards held. |
