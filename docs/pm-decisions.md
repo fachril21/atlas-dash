@@ -29,3 +29,6 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | Ojek Kilat at FINAL, Zona Lebar on Simon hard | Kept as designed. Flagged for playtest. |
 | Engineer interpretations (CP4a) | Accepted as built: Santai Dulu on hard gives a 6 s cooldown (test-plan line was stale); auto-discard breaks rarity ties by oldest first, with new cards last; Ojek Kilat adds +2 wins, clamped to `winsRequired`; when the match ends, open card screens close with no cards given. |
 | Debug reducer actions | `debug*` actions are accepted by the reducer in any build. Before multiplayer, the server must reject them. Tracked for CP4b / multiplayer. |
+| QA-CP4a-03 Pause on card screens | Pause is allowed on the offer and discard screens. The Pause button stays above the card modal, and pausing freezes the 15 s timer. Fix in CP4b. |
+| QA-CP4a-01 actionLog replay | Fix in CP4b, so that tick coalescing can't change the timing of card-screen timeouts. Needed for debug export and the future server. |
+| QA-CP4a-02 offer cards out of every zone at match end | Fix in CP4b, so that each card stays in exactly one zone. |

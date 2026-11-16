@@ -12,7 +12,7 @@ Kriteria di bawah mengikuti dokumen desain v0.2 + keputusan C-2/C-3. Kriteria ya
 | Smoke | Playwright (terpasang di CP3a: `npm run test:e2e`, `playwright.config.ts`, `tests/e2e/`) | Build `vite preview`, 2 project: `desktop` 1280×720 mouse, `mobile` 390×844 `hasTouch` + `isMobile` (Chromium); plus WebKit mobile di CP6 | Tiap CP, sebelum lapor |
 | Manual | HP Android acuan + iPhone acuan (⚠DR-13), laptop desktop | Rasa, keterbacaan, performa nyata, playtest | Akhir tiap CP |
 
-Baseline 2026-11-16: `npx vitest run` → 3 file, 24 test lulus (architecture, movement, rng). Test movement lama akan diganti sesuai model target (⚠DR-01).
+Baseline awal 2026-11-16: 3 file, 24 test. Sesudah CP4a: 228 test Engineer + test QA `tests/cp4a-qa.test.ts` (lihat [cp4a-report.md](cp4a-report.md)).
 
 **Kebutuhan testability dari Engineer (diminta mulai CP3):**
 1. URL param `?seed=<n>` (match deterministik) dan `?debug=1`.
@@ -46,7 +46,7 @@ Baseline 2026-11-16: `npx vitest run` → 3 file, 24 test lulus (architecture, m
 | `race_start_no_minigame` | Semua pion mulai di start dalam fase memilih target; start dan finish tidak pernah memicu minigame (⚠DR-11) | Unit |
 | `race_target_adjacent_only` | `selectTarget` hanya diterima untuk edge keluar; non-tetangga, region yang sudah dilewati, dan arah balik ditolak dengan alasan; state tidak berubah | Unit |
 | `race_two_wins_to_enter` | Win ke-1 → `winsAtTarget=1`, pion tetap; win ke-2 → pion pindah, `winsAtTarget` reset | Unit |
-| `race_cooldown_by_difficulty` | Gagal di easy/medium/hard → cooldown 12/8/4 s game-time; Mulai ditolak sebelum habis, diterima tepat setelahnya (batas ±1 tick) | Unit |
+| `race_cooldown_by_difficulty` | Gagal di easy/medium/hard → cooldown 8/6/4 s game-time (easy/medium/hard; PM CP3b); Mulai ditolak sebelum habis, diterima tepat setelahnya (batas ±1 tick) | Unit |
 | `race_switch_target_rules` | Ganti target boleh kapan saja (keputusan PM, disetujui fachril). Tanpa win parsial: langsung. Dengan win parsial: UI minta konfirmasi, lalu win parsial jadi 0. Cooldown tetap berjalan setelah ganti; tidak boleh saat minigame berjalan | Unit + Smoke |
 | `race_final_auto_finish` | Menguasai Labuan Bajo atau Raja Ampat → `playerFinished` + `gameOver` di tick yang sama; aksi semua pemain ditolak setelahnya (⚠DR-06) | Unit |
 | `race_first_finisher_wins` | Dua pemain menyelesaikan region final di tick yang sama → yang diproses lebih dulu menang; hasil sama untuk seed sama | Unit |
@@ -82,6 +82,8 @@ Baseline 2026-11-16: `npx vitest run` → 3 file, 24 test lulus (architecture, m
 
 **Prasyarat:** DR-23–DR-31, DR-33 diputuskan.
 
+**Pembagian (PM, 2026-11-16):** CP4a = 20 kartu sebagai data, interpreter efek, penawaran boost-only (pool 9 kartu fase `a`), hand/buang, timer 15 s, 9 kartu boost aktif, Tiket Pesawat. CP4b = sabotase, target picker, batas Q2, Copet, Payung/Cermin, bobot comeback. Baris di bawah yang bergantung pada sabotase/tier (`offer_distribution` per tier, `comeback_tier_boundaries`, `sabotage_cap_two`, `defense_payung_cermin`, `gunung_all_opponents`, `copet_<case>`, picker/toast di `smoke_hand_ui`) baru berlaku di CP4b. Di CP4a `offer_constraints` = 5 kartu boost berbeda dari pool 9 (jaminan tipe dan rare+ dilewati, cards.md §3.2); `offer_distribution` = hanya baris "Pemimpin"; `pending_applied_at_start` memakai durasi `next_minigame` + syarat `onFail`/`onWin` (DR-23, tidak ada `next_fail`/`next_reward`).
+
 | ID | Kriteria | Jenis |
 |---|---|---|
 | `cards_data_matches_spec` | 20 kartu, id unik; 11 boost / 9 sabotase; rarity 10/7/3; 8 base = 5 boost + 3 sabotase; tiap `op` valid untuk `duration`-nya; Copet `usesSabotageSlot=false` | Unit |
@@ -93,9 +95,9 @@ Baseline 2026-11-16: `npx vitest run` → 3 file, 24 test lulus (architecture, m
 | `hand_limit_and_discard` | Hand > 5 → layar Buang wajib; tidak bisa ditutup sebelum = 5; hand ≤ 5 setiap kali layar Buang tutup | Unit + Smoke |
 | `card_screen_timeout` | Dengan `page.clock`: 15 s di layar pilih → auto-pick sesuai aturan; 15 s di layar Buang → auto-buang sesuai aturan (⚠DR-25) | Unit + Smoke |
 | `card_zones_invariant` | Fuzz 500 seed × 200 aksi acak (pakai, curi, pantul, buang): tiap instance kartu tepat di 1 zona, tidak ada duplikat, total instance konsisten | Unit (properti) |
-| `pending_applied_at_start` | Pending diterapkan saat Mulai dan habis setelahnya; kartu ke target yang sedang main menunggu minigame berikutnya; durasi `next_fail`/`next_reward` sesuai DR-23 | Unit |
+| `pending_applied_at_start` | Pending diterapkan saat Mulai dan habis setelahnya; kartu ke target yang sedang main menunggu minigame berikutnya; kartu bersyarat habis setelah 1 percobaan menang atau gagal (DR-23, DR-48) | Unit |
 | `netting_and_clamp` | Jam Pasir + Jam Rusak = 0 s; Santai + Badai = difficulty dasar; 2× Jam Rusak di minigame 15 s → 10 s; 2× Jam Pasir di 30 s → 40 s | Unit |
-| `effective_difficulty_drives_rewards` | Santai Dulu di region hard → cooldown 8 s & 2 kartu; Badai di medium → 4 s & 3 kartu (D-002) | Unit |
+| `effective_difficulty_drives_rewards` | Santai Dulu di region hard → difficulty efektif medium → cooldown 6 s & 2 kartu; Badai di medium → hard → cooldown 4 s & 3 kartu (D-002; angka cooldown 8/6/4 sejak CP3b) | Unit |
 | `sabotage_cap_two` | Target dengan 2 sabotase pending tidak bisa dipilih ("Penuh") untuk sabotase pending, dari sumber mana pun termasuk pantulan | Unit + Smoke |
 | `max_stacks` | Jam Pasir/Jam Rusak maks 2, lainnya 1; lewat batas = kartu tidak bisa dimainkan dan tetap di hand (⚠DR-29) | Unit |
 | `defense_payung_cermin` | Payung menangkal 1 sabotase (keduanya habis); Cermin memantulkan ke pengirim; pengirim penuh → hanya tertangkal; maks 1 defensif aktif; pantulan tidak memantul lagi (⚠DR-28) | Unit |
