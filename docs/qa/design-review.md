@@ -99,3 +99,18 @@
 ---
 
 **Ringkasan:** 49 temuan: **6 blocker**, **33 should-fix**, **10 nit**. Butuh keputusan owner: DR-22 (C-1). Sisanya bisa diputuskan PM/Designer/Engineer.
+
+## Status resolusi sabotase (Designer, CP4b)
+Baris temuan di atas tidak diubah. Resolusi tertulis di [cards.md v0.4](../cards.md) dan [ui-flow.md §7](../ui-flow.md#7-target-picker-sabotase):
+
+| ID | Status | Di mana |
+|---|---|---|
+| DR-24 | Resolved (Nyawa menang atas Macet, keduanya habis) | cards.md §2.3 langkah 5 |
+| DR-27 | Resolved (atomik, popover menutup, jumlah buang dihitung ulang, timer tidak direset) | cards.md §2.2.5, ui-flow §7 |
+| DR-28 | Resolved (pantulan tidak dipantulkan/ditangkal lagi, Q2 + `maxStacks`, kelebihan hangus; Cermin vs Cermin) | cards.md §2.2.3 |
+| DR-29 | Resolved (Gunung bila ≥ 1 lawan valid; label "Sudah kena kartu ini") | cards.md §2.2.1 |
+| DR-32 | Resolved untuk CP4b (comeback berlaku untuk bot; bot auto-pick); strategi bot memilih/memakai kartu tetap CP5 | cards.md §3.2, §3.2.1; gdd Bot |
+| DR-33 | Resolved (semua lihat jumlah slot; nama hanya target+pengirim; satu pengecualian label) | cards.md §1; ui-flow §3, §7 |
+| DR-35 | Resolved untuk sasaran sabotase di CP4b (per jenis setelah netting); sisanya CP5 | cards.md §3.2.1 |
+| DR-47 | Resolved (stream `copet` pemilik Cermin) | cards.md §2.2.4 butir 2 |
+| DR-36, DR-37 | Tetap CP5 | — |

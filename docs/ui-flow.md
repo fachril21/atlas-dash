@@ -1,9 +1,9 @@
 # UI Flow + HUD
 
-**Status:** designed · **Updated:** 2026-11-16 · Kembali ke [GDD](gdd.md) · Requirement: K1, K1.1, K2, R2, R9
+**Status:** designed · **Updated:** 2026-11-16 (v0.3, CP4b: target picker §7, pause di layar kartu, visibilitas slot DR-33, DR-27) · Kembali ke [GDD](gdd.md) · Requirement: K1, K1.1, K2, R2, R9
 
 ## 1. Prinsip
-- **Screen stack:** layar penuh di-*replace* (Menu → Setup → Race → Hasil); overlay di-*push* di atas Race (Minigame, Kartu, Buang, Target picker, Pause) dan di-*pop* saat selesai. Hanya layar teratas menerima input.
+- **Screen stack:** layar penuh di-*replace* (Menu → Setup → Race → Hasil); overlay di-*push* di atas Race (Minigame, Kartu, Buang, Target picker, Pause) dan di-*pop* saat selesai. Hanya layar teratas menerima input, **kecuali tombol Pause**: tombol Pause selalu di atas modal apa pun (Penawaran, Buang, Detail, Target Picker) dan bisa ditekan; pause membekukan semua timer game termasuk timer 15 s layar kartu (keputusan PM, QA-CP4a-03).
 - **HUD digerakkan event**, bukan polling: `progressChanged`, `handChanged`, `cooldownStarted/Ended`, `pendingEffectsChanged`, `playerMoved`. Saat HUD dipasang, isi nilai awal sekali.
 - **Skala:** UI HTML/CSS di atas canvas three.js. Referensi desktop 1920×1080, mobile 390×844 (portrait). Ukuran pakai `rem` + `clamp()`; tata letak pakai flex/grid yang ditambatkan ke sudut/tepi, bukan posisi piksel.
 - **Safe area:** semua elemen penting di dalam `env(safe-area-inset-*)`; `viewport-fit=cover`.
@@ -68,7 +68,7 @@ Splash/Loading ─▶ Menu Utama ─▶ Setup Bot ─▶ Race ──────
 Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri atas.
 
 ### Elemen HUD
-- **Progres lawan:** satu baris per pemain: warna pion + nama + bar `1 − remainingWins/total` (`total` = `remainingWins` di start, Indonesia = 8; rumus dan tabel di [map-indonesia.md](map-indonesia.md#jarak-ke-finish-dan-remainingwins-dr-07)) + teks "N win lagi" + ikon status (🎮 sedang main, ⏱ cooldown, 🗺 memilih). Urut berdasarkan posisi. Ikon ⚡ kecil bila pemain itu sedang terkena sabotase pending (terlihat semua, tanpa detail kartu). Pion bot di diorama juga terlihat bergerak.
+- **Progres lawan:** satu baris per pemain: warna pion + nama + bar `1 − remainingWins/total` (`total` = `remainingWins` di start, Indonesia = 8; rumus dan tabel di [map-indonesia.md](map-indonesia.md#jarak-ke-finish-dan-remainingwins-dr-07)) + teks "N win lagi" + ikon status (🎮 sedang main, ⏱ cooldown, 🗺 memilih). Urut berdasarkan posisi. Slot sabotase pending ●●/●○/○○ (terlihat semua pemain; nama kartu hanya terlihat target dan pengirim, DR-33; ikon ⚡ tampil bila ≥ 1 slot terisi). Pion bot di diorama juga terlihat bergerak.
 - **Pilih region:** setelah masuk region, tetangga yang valid bersinar dan berlabel (nama + badge difficulty E/M/H berbentuk 1/2/3 bintang). Tap/klik untuk menjadikan target; panel target menampilkan nama, difficulty, win `x/winsRequired`, preview kartu per win. Ganti target boleh kapan saja di race view (juga saat cooldown); bila ada win parsial, tampil konfirmasi "Progres 1/2 akan hilang". Cooldown tetap berjalan setelah ganti target (DR-05).
 - **Tombol Mulai / cooldown timer:** satu tombol yang berubah status:
   - *Mulai* (aktif bila target dipilih).
@@ -80,7 +80,7 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 - 5 slot tetap; slot kosong tampil garis putus-putus (pemain tahu sisa kapasitas).
 - Kartu menampilkan: ikon besar, nama, tipe (bentuk bingkai + warna), rarity (permata: common abu, rare biru, epic ungu-emas berkilau).
 - **Tap/klik kartu → Detail Kartu** (popover di atas hand): nama, efek 1 kalimat, durasi ("minigame berikutnya"), tombol **Pakai** dan **Batal**. Desktop: hover memperbesar kartu 1,15×; tombol 1–5 memilih kartu.
-- Kartu yang tidak bisa dipakai saat ini (mis. Kopi Tubruk di luar cooldown, maxStacks penuh) tampil 50% redup dengan alasan di detail ("Hanya saat cooldown").
+- Kartu yang tidak bisa dipakai saat ini (mis. Kopi Tubruk di luar cooldown, maxStacks penuh, sabotase tanpa lawan valid, kartu pertahanan kedua) tampil 50% redup dengan alasan di detail ("Hanya saat cooldown", "Semua lawan penuh", "Sudah ada kartu pertahanan aktif").
 - Pakai kartu self → animasi kartu terbang ke pion sendiri 0,4 s + ikon pending muncul. Kartu instan langsung berefek.
 - Desktop opsional: drag kartu sabotase ke baris progres lawan = pilih target langsung.
 
@@ -98,14 +98,30 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 - Batas waktu 15 s; habis = kartu yang sudah ditandai tetap dibuang, kekurangannya diisi rarity terendah dulu, seri → paling lama di hand, kartu BARU paling akhir (DR-25, [cards.md §3.4](cards.md#34-layar-pilih-dan-layar-buang-timer-15-s-dr-25)).
 
 ## 7. Target picker sabotase
-- Muncul setelah **Pakai** pada kartu sabotase bertarget `opponent`.
-- Daftar lawan (kartu besar per lawan, 1 kolom di mobile): warna + nama, posisi (#1–#4), "N win lagi", status (🎮/⏱/🗺), jumlah kartu di hand, slot sabotase pending (●●, maks 2).
-- Lawan dengan 2 sabotase pending (Q2): redup, label "Penuh", tidak bisa dipilih. Pengecualian: **Copet** (instan, tidak memakai slot) tetap bisa ke lawan "Penuh", tapi tidak bisa ke lawan dengan hand kosong (label "Hand kosong").
-- Copet berhasil: kartu curian terbang dari pion lawan ke hand kamu + toast "Kamu mencopet Teropong dari Bot 2". Kamu dicopet: toast merah "Bot 1 mencopet Teropong darimu" + slot hand yang kosong berkedip.
-- Rekomendasi: badge "Terdepan" di lawan peringkat 1 (bantu pemain baru).
-- Tap lawan → konfirmasi instan (tanpa dialog kedua) → animasi kartu terbang ke pion lawan di diorama 0,5 s + toast "Jam Rusak → Bot 2". Batal = kembali ke detail kartu, kartu tetap di hand.
-- Hasil tertangkal/terpantul tampil sebagai toast: "Bot 2 punya Payung Tameng!" / "Dipantulkan ke kamu!".
-- Kartu `all_opponents` (Gunung Meletus): tanpa picker; konfirmasi "Kena semua lawan?" → Ya.
+Aturan validitas target (satu-satunya definisi): [cards.md §2.2.1](cards.md#221-target-valid-k2-q2-satu-satunya-definisi). Di sini hanya perilaku layar.
+
+**Alur**
+1. Detail Kartu sabotase `opponent` → **Pakai**.
+   - Bila **tidak ada lawan valid**: tombol Pakai tidak aktif (kartu redup di hand) dengan alasan di detail ("Semua lawan penuh", dst.). Picker tidak pernah dibuka kosong.
+   - Bila **hanya 1 lawan di match** dan valid: picker dilewati, Pakai langsung berlaku (toast "Jam Rusak → Bot 1").
+   - Selain itu picker terbuka (push di atas Race), juga bila hanya 1 dari 3 lawan yang valid (supaya terlihat kenapa yang lain redup).
+2. Picker: daftar lawan (kartu besar per lawan, 1 kolom di mobile): warna + nama, posisi (#1–#4), "N win lagi", status (🎮/⏱/🗺), jumlah kartu di hand, slot sabotase terisi (●●/●○/○○). Badge "Terdepan" di peringkat 1. Fokus awal: lawan valid pertama (peringkat teratas).
+3. Lawan tidak valid: redup 50%, tidak bisa dipilih, **label alasan** (prioritas dan teks di cards.md §2.2.1): "Hand kosong" (Copet), "Penuh", "Sudah kena kartu ini". Copet tetap valid ke lawan "Penuh".
+4. Tap/klik lawan valid → berlaku **seketika** (tanpa dialog kedua) → kartu terbang ke pion lawan 0,5 s + toast. **Batal / Esc / tap di luar** = kembali ke Detail Kartu, kartu tetap di hand.
+5. Desktop: drag kartu ke baris progres lawan = pilih target langsung; baris tidak valid menolak drop dengan toast label yang sama.
+6. Kartu `all_opponents` (Gunung Meletus): tanpa picker; konfirmasi menyebut dampak: "Kena 2 dari 3 lawan (Bot 3 penuh)" → Ya / Batal. Tidak ada lawan valid = kartu redup.
+
+**Timer, pause, perubahan saat terbuka**
+- Picker **tidak punya timer**. Jam game tetap berjalan (cooldown, bot); tidak ada auto-pilih.
+- **Pause boleh** di picker (dan di Detail, Penawaran, Buang), mengikuti keputusan PM: tombol Pause tetap di atas modal dan membekukan semua timer game ([cards.md §3.4](cards.md#34-layar-pilih-dan-layar-buang-timer-15-s-dr-25)).
+- State lawan bisa berubah selama picker terbuka (jadi penuh, hand kosong). Baris diperbarui lewat event; validasi diulang saat tap. Bila gagal: toast "Bot 2: Penuh", baris redup, picker tetap terbuka, kartu tidak terpakai. Bila semua baris jadi tidak valid: picker menutup dengan toast "Tidak ada lawan yang bisa dikenai".
+- Match berakhir (`playerFinished`) saat picker terbuka: picker menutup tanpa efek.
+- Lawan adalah bot: picker dan kartu bekerja sama persis (bot tak punya layar; efek bot lihat cards.md §3.2.1).
+
+**Umpan balik**
+- Info slot: semua pemain melihat jumlah slot sabotase terisi tiap pemain; nama kartu hanya terlihat oleh target dan pengirim (DR-33). Di picker, slot lawan tampil sebagai ●/○ saja; kartu yang kamu kirim ke lawan itu tampil sebagai ikon kecil bernama di barisnya.
+- Hasil tertangkal/terpantul: toast "Bot 2 punya Payung Tameng! Kartumu hangus" / "Dipantulkan ke kamu!" / "Dipantulkan, tapi tertangkal" (pantulan ke pengirim yang penuh).
+- Copet berhasil: kartu curian terbang dari pion lawan ke hand kamu + toast "Kamu mencopet Teropong dari Bot 2". Kamu dicopet: toast merah "Bot 1 mencopet Teropong darimu" + slot hand yang kosong berkedip. Dicopet saat Detail/Picker untuk kartu itu terbuka: popover menutup dengan toast "Kartumu dicopet: X". Dicopet saat layar Buang terbuka: jumlah wajib buang dihitung ulang, layar menutup otomatis bila tidak perlu buang lagi, timer tidak direset (cards.md §2.2.5).
 - Saat kamu disabotase: toast merah dari atas "Bot 1 memakai Badai ke kamu" + ikon pending baru berkedip 2×.
 
 ## 8. Minigame overlay
@@ -134,4 +150,4 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 2. PM: mobile portrait-first, landscape didukung; ikon ⚡ sabotase pending lawan terlihat semua pemain; layar kartu dilewati setelah win penentu kemenangan (C-3).
 3. PM (CP3a): ganti target boleh saat cooldown, cooldown tetap jalan, ulang lewat Mulai (DR-05); input dikunci sejak `playerFinished` (DR-06).
 
-Tidak ada open question tersisa. CP4a: DR-25 dan DR-48 dikerjakan (lihat [cards.md](cards.md)); DR-27 dan DR-33 menunggu CP4b. Temuan lain untuk UI (DR-12, DR-13, DR-46) dikerjakan di CP3b/CP6.
+Tidak ada open question tersisa untuk dokumen ini (usulan CP4b yang ditandai ★ ada di [cards.md §6–§7](cards.md#7-pertanyaan-terbuka-untuk-pm)). CP4a: DR-25 dan DR-48 dikerjakan; CP4b: DR-27 dan DR-33 dikerjakan (§7, [cards.md §2.2.5](cards.md#225-copet-saat-target-punya-layarpopover-terbuka-dr-27)). Temuan lain untuk UI (DR-12, DR-13, DR-46) dikerjakan di CP3b/CP6.

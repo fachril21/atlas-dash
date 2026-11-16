@@ -32,3 +32,13 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | QA-CP4a-03 Pause on card screens | Pause is allowed on the offer and discard screens. The Pause button stays above the card modal, and pausing freezes the 15 s timer. Fix in CP4b. |
 | QA-CP4a-01 actionLog replay | Fix in CP4b, so that tick coalescing can't change the timing of card-screen timeouts. Needed for debug export and the future server. |
 | QA-CP4a-02 offer cards out of every zone at match end | Fix in CP4b, so that each card stays in exactly one zone. |
+
+## CP4b decisions (PM, 2026-11-16)
+
+| Topic | Decision |
+|---|---|
+| Bot hands in CP4b | Accepted. Bots get offers and auto-pick, and they build a hand, but they don't play cards until CP5. This makes Copet, cap 2 and comeback testable against bots. The bot pass-chance mapping of ±8 points per modifier kind (DR-35) applies from now on. |
+| Picker with a single opponent | Accepted. The target picker is skipped when the match has only 1 opponent. |
+| "Sudah kena kartu ini" label | Accepted, with its small information leak. This beats a card being wasted because the target already holds `maxStacks`. |
+| Slot hold | Accepted. Sabotage slots stay held until the target's attempt finishes. |
+| Designer rules for DR-24/27/28/29/32/33/35/47 and QA-CP4a-01/02/03 | Accepted as written in cards.md v0.4 §2.2–§3.4 and ui-flow §1/§7. |
