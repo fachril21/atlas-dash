@@ -1,6 +1,6 @@
 # Peta Indonesia + Format Data Peta
 
-**Status:** designed · **Updated:** 2026-11-16 (v0.2, CP2) · Kembali ke [GDD](gdd.md) · Requirement: R1, R4, R5, R6, R6.1, M2, Q1
+**Status:** designed · **Updated:** 2026-11-16 (v0.3, CP3a) · Kembali ke [GDD](gdd.md) · Requirement: R1, R4, R5, R6, R6.1, M2, Q1
 
 ## 1. Graph region
 
@@ -21,12 +21,30 @@
 
 Edge berarah (DAG, D-003): `sabang→medan`, `sabang→padang`, `medan→jakarta`, `padang→jakarta`, `jakarta→yogyakarta`, `jakarta→toraja`, `yogyakarta→bali`, `bali→labuan_bajo`, `toraja→labuan_bajo`, `toraja→raja_ampat`, `labuan_bajo→merauke`, `raja_ampat→merauke`.
 
-### Aturan gerak (R6.1, diterapkan oleh data + race layer)
-- Pemain berdiri di region yang sudah dikuasai. Ia memilih **satu region tetangga** (edge keluar) sebagai target, lalu memainkan minigame target itu. Setelah `winsRequired` win (**2**, diputuskan owner Q1), pion masuk ke target.
-- **Masuk finish:** bila region tempat pemain berdiri punya edge ke finish, pion otomatis jalan ke finish (animasi 2 s) tanpa minigame → pemain menang. (Di peta Indonesia, Labuan Bajo dan Raja Ampat hanya terhubung ke Merauke.) Aturan umum untuk peta lain: edge ke finish selalu dipilih otomatis, karena selalu yang terbaik.
-- Tidak ada edge balik → tidak bisa mundur. Tidak bisa melompati region kecuali dengan kartu Tiket Pesawat ([cards.md](cards.md); tidak boleh untuk region yang punya edge ke finish, D-009).
-- Setelah gagal, pemain boleh **ganti target** ke tetangga lain dari region yang sama; win parsial di target lama hangus (diputuskan PM).
+### Aturan gerak (R6.1, DR-01, DR-05, DR-06; diterapkan oleh data + race layer)
+State gerak per pemain: `nodeId` (region yang sudah dikuasai, awal = start), `targetId` (tetangga yang diincar, atau `null`), `winsAtTarget` (0..`winsRequired`).
+- Pemain berdiri di `nodeId`. Ia memilih **satu region tetangga** (edge keluar) sebagai `targetId`, lalu menekan Mulai dan memainkan minigame target itu. Setiap win: `winsAtTarget + 1`. Saat `winsAtTarget = winsRequired` (**2**, diputuskan owner Q1): `nodeId = targetId`, `targetId = null`, `winsAtTarget = 0`, pion jalan ke region itu.
+- **Region final** = region yang punya edge ke finish (Indonesia: Labuan Bajo, Raja Ampat). **Menang (DR-06):** tepat saat logic mencatat win ke-2 di region final, logic memancarkan event `playerFinished`; itu momen kemenangan. Sejak event itu semua input semua pemain dikunci. Animasi pion jalan ke finish (2 s) murni kosmetik dan tidak memengaruhi siapa juara. Finish sendiri tidak punya minigame (D-004).
+- **Ganti target:** boleh kapan saja pemain di race view dan tidak sedang minigame, **termasuk saat cooldown**. `winsAtTarget` di target lama hangus (jadi 0). **Cooldown milik pemain, bukan target:** sisa cooldown tetap berjalan setelah ganti target (tidak bisa dipakai untuk kabur dari cooldown).
+- **Ulang setelah gagal:** setelah cooldown habis, pemain harus menekan **Mulai** lagi; tidak ada mulai otomatis.
+- Tidak ada edge balik → tidak bisa mundur. Tidak bisa melompati region kecuali dengan kartu Tiket Pesawat ([cards.md](cards.md); tidak boleh untuk region final, D-009).
 - Banyak pemain boleh berada/mengincar region yang sama; tiap pemain main minigame sendiri.
+
+### Jarak ke finish dan `remainingWins` (DR-07)
+`playDist(n)` = jumlah region yang masih harus **dimainkan** dari region `n` ke finish lewat jalur terpendek (`n` sendiri dan finish tidak dihitung). Rumus `remainingWins` ada di [GDD](gdd.md#aturan-menangkalah). Nilai untuk Indonesia (`winsRequired` = 2), dipakai sebagai data test:
+
+| Node | `playDist` | `remainingWins` saat berdiri di node tanpa win parsial |
+|---|---|---|
+| sabang | 4 | 8 (= `total` HUD) |
+| medan, padang | 3 | 6 |
+| jakarta | 2 | 4 |
+| yogyakarta | 2 | 4 |
+| toraja | 1 | 2 |
+| bali | 1 | 2 |
+| labuan_bajo, raja_ampat | 0 | 0 (sudah menang) |
+| merauke | — | — (finish) |
+
+Contoh dengan win parsial: di Jakarta, target Toraja, 1 win → min(2×1 + 1, 2×2) = **3**. Di Jakarta, target Yogyakarta, 1 win → min(2×2 + 1, 2×2) = **4** (jalur Yogyakarta lebih panjang, jadi win parsial di sana tidak mengurangi). Di Bali, target Labuan Bajo, 1 win → min(0 + 1, 2) = **1**.
 
 ## 2. Tipe region
 
@@ -97,11 +115,11 @@ Finish tanpa minigame (D-004), jadi hanya region yang dimainkan yang dihitung; j
 
 Pemain jago (hard 60%: ≈ 107 s/region) di rute B ≈ 9 menit. Lewat Padang (bukan Medan) +47 s untuk pemain kasual.
 
-**Konflik C-1 (PM/owner to confirm):** estimasi ini di bawah target Standard ≈ 15 menit (R5/Q1). Rekomendasi: biarkan graph seperti ini dan tuning di playtest M3 (pass rate nyata, durasi minigame, cooldown); estimasi ini kasar. Alternatif: tambah 1 node di tiap rute (graph 11–12 node, melewati "~9–10" R6), atau 3 win di region hard. Detail di [GDD](gdd.md#open-questions).
+**Target durasi (C-1, diputuskan owner):** Standard = **median ≈ 10–13 menit**, dituning di playtest (CP6). Graph ini tetap (10 node); estimasi di atas (≈ 10–11 menit) masuk rentang. Tuas tuning: pass rate lewat knob minigame, cooldown (R2), durasi minigame (15–30 s). Asumsi waktu di tabel ini akan diperbarui di CP6 (DR-14).
 
 ## 6. Format data peta (map-agnostic)
 
-Satu file per peta: `public/maps/<mapId>/map.json` `[ASSUMPTION: path final ditentukan engineer]`. Kode **tidak boleh** berisi id region, nama, atau aset khusus peta; semuanya dari file ini (R4).
+Satu file per peta: **`public/maps/<mapId>/map.json`** (final, DR-03). Kode **tidak boleh** berisi id region, nama, atau aset khusus peta; semuanya dari file ini (R4). Skema ini satu-satunya skema peta (DR-03): `regions`, `position {x, z}`, `presets` dengan satu `finish`, graph DAG. **Tidak ada `twoWay`**: setiap edge satu arah; jalan dua arah tidak ada di game ini.
 
 ### 6.1 Skema
 
@@ -144,7 +162,7 @@ interface MapData {
 
 ### 6.2 Validasi saat load (gagal = peta tidak bisa dipilih, error jelas di console)
 1. Semua `edges` menunjuk region yang ada; graph tidak punya siklus (DAG).
-2. Untuk tiap preset aktif: setiap region yang terjangkau dari `start` bisa mencapai `finish` (tidak ada jalan buntu), `finish` tidak punya edge keluar, `start` tidak punya edge masuk, dan **setiap** jalur start→finish punya panjang (start tidak dihitung, finish dihitung) dalam `routeLength`. Tidak boleh ada edge langsung `start → finish`.
+2. Untuk tiap preset aktif, dicek pada subgraph yang terjangkau dari `start` (edge yang masuk ke `start` diabaikan, sehingga preset Short yang mulai di Jakarta tetap valid): setiap region terjangkau bisa mencapai `finish` (tidak ada jalan buntu), `finish` tidak punya edge keluar, tidak ada edge langsung `start → finish`, dan **setiap** jalur start→finish punya panjang (start tidak dihitung, finish dihitung) dalam `routeLength`.
 3. Ada ≥ 2 region dengan ≥ 2 edge keluar (titik cabang, R6).
 4. `places` ≥ 8 dan tersebar di ≥ 5 region (syarat Tebak Lokasi), tiap `regionId` valid.
 5. Tiap `region.type` ada di `regionTypes`; tiap minigame di pool punya entri `minigameThemes` yang dibutuhkannya.
@@ -226,6 +244,6 @@ Cukup file `public/maps/japan/map.json` baru dengan `regionTypes` sendiri (mis. 
 - Owner: 2 win per region (Q1).
 - PM: edge satu arah/DAG dan finish tanpa minigame (sesuai scaffold engineer, D-003/D-004); ganti target setelah gagal, win parsial hangus; Toraja sebagai node Sulawesi; Long nanti ditambah node; `places` berupa ilustrasi low-poly buatan sendiri.
 
-## Open questions (PM/owner to confirm)
-1. **C-1 Durasi:** estimasi Standard ≈ 10–11 menit setelah D-004, di bawah ≈ 15 menit (lihat §5).
-2. **C-2 Tiket Pesawat di region terakhir** (D-009): rekomendasi dilarang untuk region yang punya edge ke finish.
+- CP3a: model gerak target + 2 win (DR-01), cooldown tetap jalan saat ganti target + ulang lewat Mulai (DR-05), menang di event logic `playerFinished` (DR-06), skema peta final tanpa `twoWay` di `public/maps/<id>/` (DR-03), rumus `remainingWins` + tabel node (DR-07), target durasi median ≈ 10–13 menit (owner, C-1), Tiket Pesawat dilarang di region final (PM, C-2).
+
+Tidak ada open question tersisa di dokumen ini. Temuan QA lain untuk peta (DR-43–DR-45) dikerjakan di CP3b.

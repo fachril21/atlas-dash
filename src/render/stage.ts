@@ -3,7 +3,8 @@
  * One WebGLRenderer, driven only by setAnimationLoop.
  */
 import * as THREE from 'three';
-import { SKY_COLOR } from './palette';
+import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+import { FALLBACK_SKY } from './palette';
 
 export type FrameCallback = (dtSeconds: number) => void;
 
@@ -18,6 +19,8 @@ export class Stage {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
   readonly sun: THREE.DirectionalLight;
+  /** DOM labels (region names) positioned in 3D; sits above the canvas. */
+  readonly labelRenderer = new CSS2DRenderer();
 
   private readonly timer = new THREE.Timer();
   private readonly frameCallbacks: FrameCallback[] = [];
@@ -33,8 +36,10 @@ export class Stage {
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.domElement.className = 'game-canvas';
     container.appendChild(this.renderer.domElement);
+    this.labelRenderer.domElement.className = 'label-layer';
+    container.appendChild(this.labelRenderer.domElement);
 
-    this.scene.background = new THREE.Color(SKY_COLOR);
+    this.scene.background = new THREE.Color(FALLBACK_SKY);
 
     // Bright, soft fill + one shadow-casting key light.
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x9ccfe0, 1.6));
@@ -49,6 +54,10 @@ export class Stage {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.resize();
+  }
+
+  setSky(cssColor: string): void {
+    this.scene.background = new THREE.Color(cssColor);
   }
 
   /** Frame the given world box (e.g. the board) and fit the sun's shadow camera to it. */
@@ -85,6 +94,7 @@ export class Stage {
       const dt = Math.min(Math.max(this.timer.getDelta(), 0), 0.1);
       for (const cb of this.frameCallbacks) cb(dt);
       this.renderer.render(this.scene, this.camera);
+      this.labelRenderer.render(this.scene, this.camera);
     });
   }
 
@@ -98,6 +108,7 @@ export class Stage {
     this.timer.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
+    this.labelRenderer.domElement.remove();
   }
 
   private resize(): void {
@@ -105,6 +116,7 @@ export class Stage {
     const h = Math.max(1, this.container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
     this.renderer.setSize(w, h, false); // CSS controls the element size
+    this.labelRenderer.setSize(w, h);
     this.updateProjection();
   }
 

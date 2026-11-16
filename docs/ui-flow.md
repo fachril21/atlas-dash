@@ -51,7 +51,7 @@ Splash/Loading ─▶ Menu Utama ─▶ Setup Bot ─▶ Race ──────
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Mobile (portrait, default) `[ASSUMPTION]`
+### Mobile (portrait, default; diputuskan PM)
 ```
 ┌──────────────────────┐
 │ Progres (4 baris ringkas, bisa diciutkan) ⏸ │
@@ -68,11 +68,11 @@ Splash/Loading ─▶ Menu Utama ─▶ Setup Bot ─▶ Race ──────
 Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri atas.
 
 ### Elemen HUD
-- **Progres lawan:** satu baris per pemain: warna pion + nama + bar `1 − remainingWins/total` + teks "N win lagi" + ikon status (🎮 sedang main, ⏱ cooldown, 🗺 memilih). Urut berdasarkan posisi. Ikon ⚡ kecil bila pemain itu sedang terkena sabotase pending (terlihat semua, tanpa detail kartu). Pion bot di diorama juga terlihat bergerak.
-- **Pilih region:** setelah masuk region, tetangga yang valid bersinar dan berlabel (nama + badge difficulty E/M/H berbentuk 1/2/3 bintang). Tap/klik untuk menjadikan target; panel target menampilkan nama, difficulty, win `x/winsRequired`, preview kartu per win. Ganti target hanya bila belum ada win parsial, atau setelah gagal (dengan konfirmasi "Progres 1/2 akan hilang").
+- **Progres lawan:** satu baris per pemain: warna pion + nama + bar `1 − remainingWins/total` (`total` = `remainingWins` di start, Indonesia = 8; rumus dan tabel di [map-indonesia.md](map-indonesia.md#jarak-ke-finish-dan-remainingwins-dr-07)) + teks "N win lagi" + ikon status (🎮 sedang main, ⏱ cooldown, 🗺 memilih). Urut berdasarkan posisi. Ikon ⚡ kecil bila pemain itu sedang terkena sabotase pending (terlihat semua, tanpa detail kartu). Pion bot di diorama juga terlihat bergerak.
+- **Pilih region:** setelah masuk region, tetangga yang valid bersinar dan berlabel (nama + badge difficulty E/M/H berbentuk 1/2/3 bintang). Tap/klik untuk menjadikan target; panel target menampilkan nama, difficulty, win `x/winsRequired`, preview kartu per win. Ganti target boleh kapan saja di race view (juga saat cooldown); bila ada win parsial, tampil konfirmasi "Progres 1/2 akan hilang". Cooldown tetap berjalan setelah ganti target (DR-05).
 - **Tombol Mulai / cooldown timer:** satu tombol yang berubah status:
   - *Mulai* (aktif bila target dipilih).
-  - *Cooldown:* tombol non-aktif dengan ring progres yang mengecil + angka detik besar ("⏱ 8"). Bergetar halus 1× saat cooldown selesai, lalu kembali "Mulai" (ulang target yang sama).
+  - *Cooldown:* tombol non-aktif dengan ring progres yang mengecil + angka detik besar ("⏱ 8"). Bergetar halus 1× saat cooldown selesai, lalu kembali "Mulai". Ulang **tidak** otomatis: pemain harus menekan Mulai (DR-05); target yang sama memakai minigame yang sama dengan intro 1,5 s.
   - *Menunggu animasi jalan:* disembunyikan 2 s.
 - **Efek pending di diri sendiri:** baris ikon kecil di atas panel target; tap = tooltip nama + efek. Sabotase berbingkai merah bergerigi, boost hijau bulat.
 
@@ -112,7 +112,7 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 - **Intro:** kalimat aturan besar di tengah, animasi ikon, 3-2-1. Badge difficulty + ikon modifier aktif (mis. ⚡ Kabut, ⏳ +5 s) di bawah kalimat agar pemain tahu kenapa terasa beda.
 - **Saat main:** timer bar penuh-lebar di atas (di dalam safe area), indikator progres syarat lulus di kiri atas ("2/3"), tombol pause di kanan atas (solo saja). Tidak ada HUD race lain.
 - 2D: overlay HTML penuh layar dengan latar diorama di-blur. 3D: scene sendiri.
-- **Banner hasil** 1,2 s → BERHASIL → Penawaran Kartu; GAGAL → kembali ke Race dengan cooldown berjalan (Nyawa Cadangan: langsung intro ulang).
+- **Banner hasil** 1,2 s → BERHASIL → Penawaran Kartu; GAGAL → kembali ke Race dengan cooldown berjalan (Nyawa Cadangan: tanpa cooldown, tombol Mulai langsung aktif; tetap harus ditekan).
 
 ## 9. Catatan mobile
 - Kunci zoom browser saat main (`touch-action: none` di canvas dan area minigame; `user-scalable=no` hanya di layar game), cegah pull-to-refresh dan tekan-lama memunculkan menu.
@@ -124,12 +124,13 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 
 ## 10. Finish
 - Region yang punya edge ke finish diberi label "FINAL" di diorama dan di panel target ("Menang 2× di sini = juara").
-- Setelah win ke-2 di region final: banner BERHASIL → (layar kartu dilewati: kartu tidak berguna lagi; PM/owner to confirm, C-3) → pion jalan otomatis ke Merauke 2 s → confetti + bendera → layar Hasil.
-- Bila bot mencapai finish: toast "Bot 2 sampai Merauke!" 1,5 s → layar Hasil (match berakhir untuk semua).
+- **Momen menang = event logic `playerFinished`** saat win ke-2 di region final dicatat (DR-06). Sejak event itu semua input dikunci (semua pemain, termasuk hand kartu dan tombol Mulai); minigame/layar lain yang sedang terbuka milik pemain lain ditutup tanpa hasil.
+- Lalu (kosmetik saja): banner BERHASIL → layar kartu dilewati (C-3, diputuskan PM) → pion jalan otomatis ke Merauke 2 s → confetti + bendera → layar Hasil.
+- Bila bot yang memicu `playerFinished`: toast "Bot 2 sampai Merauke!" 1,5 s → layar Hasil (match berakhir untuk semua).
 
 ## Keputusan (CP2)
 1. Owner: batas waktu 15 s untuk Penawaran Kartu & Buang Kartu dengan pilihan otomatis (Q4).
-2. PM: mobile portrait-first, landscape didukung; ikon ⚡ sabotase pending lawan terlihat semua pemain.
+2. PM: mobile portrait-first, landscape didukung; ikon ⚡ sabotase pending lawan terlihat semua pemain; layar kartu dilewati setelah win penentu kemenangan (C-3).
+3. PM (CP3a): ganti target boleh saat cooldown, cooldown tetap jalan, ulang lewat Mulai (DR-05); input dikunci sejak `playerFinished` (DR-06).
 
-## Open questions (PM/owner to confirm)
-1. Lewati layar kartu setelah win terakhir di region final (karena pemain langsung menang). Opsi: (a) lewati [rekomendasi], (b) tetap tampil (tidak ada gunanya).
+Tidak ada open question tersisa. Temuan QA lain untuk UI (DR-12, DR-13, DR-25, DR-27, DR-33, DR-46, DR-48) dikerjakan di CP3b/CP4.

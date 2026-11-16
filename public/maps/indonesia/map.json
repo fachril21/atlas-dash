@@ -1,0 +1,456 @@
+{
+  "schemaVersion": 1,
+  "id": "indonesia",
+  "name": {
+    "id": "Indonesia",
+    "en": "Indonesia"
+  },
+  "theme": {
+    "palette": {
+      "sky": "#8FD8FF",
+      "sea": "#2EC4D6",
+      "ground": "#F6E7B0",
+      "accent": "#E8413C",
+      "accent2": "#FFFFFF"
+    },
+    "music": "music_indonesia_race"
+  },
+  "regionTypes": {
+    "pantai": {
+      "difficulty": "easy",
+      "name": {
+        "id": "Pantai"
+      },
+      "tileModel": "tile_beach"
+    },
+    "sawah": {
+      "difficulty": "easy",
+      "name": {
+        "id": "Sawah"
+      },
+      "tileModel": "tile_ricefield"
+    },
+    "kota": {
+      "difficulty": "medium",
+      "name": {
+        "id": "Kota"
+      },
+      "tileModel": "tile_city"
+    },
+    "hutan": {
+      "difficulty": "medium",
+      "name": {
+        "id": "Hutan"
+      },
+      "tileModel": "tile_forest"
+    },
+    "gunung": {
+      "difficulty": "hard",
+      "name": {
+        "id": "Gunung"
+      },
+      "tileModel": "tile_mountain"
+    },
+    "laut": {
+      "difficulty": "hard",
+      "name": {
+        "id": "Laut"
+      },
+      "tileModel": "tile_sea_karst"
+    }
+  },
+  "regions": [
+    {
+      "id": "sabang",
+      "name": {
+        "id": "Sabang"
+      },
+      "type": "pantai",
+      "position": {
+        "x": 2,
+        "z": 6
+      },
+      "landmarkModel": "lm_km0"
+    },
+    {
+      "id": "medan",
+      "name": {
+        "id": "Medan"
+      },
+      "type": "kota",
+      "position": {
+        "x": 12,
+        "z": 10
+      },
+      "landmarkModel": "lm_maimun"
+    },
+    {
+      "id": "padang",
+      "name": {
+        "id": "Padang"
+      },
+      "type": "gunung",
+      "position": {
+        "x": 15,
+        "z": 22
+      },
+      "landmarkModel": "lm_jam_gadang"
+    },
+    {
+      "id": "jakarta",
+      "name": {
+        "id": "Jakarta"
+      },
+      "type": "kota",
+      "position": {
+        "x": 34,
+        "z": 30
+      },
+      "landmarkModel": "lm_monas"
+    },
+    {
+      "id": "yogyakarta",
+      "name": {
+        "id": "Yogyakarta"
+      },
+      "type": "sawah",
+      "position": {
+        "x": 43,
+        "z": 34
+      },
+      "landmarkModel": "lm_tugu_jogja"
+    },
+    {
+      "id": "bali",
+      "name": {
+        "id": "Bali"
+      },
+      "type": "pantai",
+      "position": {
+        "x": 53,
+        "z": 35
+      },
+      "landmarkModel": "lm_tanah_lot"
+    },
+    {
+      "id": "toraja",
+      "name": {
+        "id": "Toraja"
+      },
+      "type": "gunung",
+      "position": {
+        "x": 58,
+        "z": 20
+      },
+      "landmarkModel": "lm_tongkonan"
+    },
+    {
+      "id": "labuan_bajo",
+      "name": {
+        "id": "Labuan Bajo"
+      },
+      "type": "hutan",
+      "position": {
+        "x": 62,
+        "z": 34
+      },
+      "landmarkModel": "lm_komodo"
+    },
+    {
+      "id": "raja_ampat",
+      "name": {
+        "id": "Raja Ampat"
+      },
+      "type": "laut",
+      "position": {
+        "x": 80,
+        "z": 12
+      },
+      "landmarkModel": "lm_piaynemo"
+    },
+    {
+      "id": "merauke",
+      "name": {
+        "id": "Merauke"
+      },
+      "type": "hutan",
+      "position": {
+        "x": 96,
+        "z": 32
+      },
+      "landmarkModel": "lm_musamus"
+    }
+  ],
+  "edges": [
+    {
+      "from": "sabang",
+      "to": "medan"
+    },
+    {
+      "from": "sabang",
+      "to": "padang"
+    },
+    {
+      "from": "medan",
+      "to": "jakarta"
+    },
+    {
+      "from": "padang",
+      "to": "jakarta"
+    },
+    {
+      "from": "jakarta",
+      "to": "yogyakarta"
+    },
+    {
+      "from": "jakarta",
+      "to": "toraja"
+    },
+    {
+      "from": "yogyakarta",
+      "to": "bali"
+    },
+    {
+      "from": "bali",
+      "to": "labuan_bajo"
+    },
+    {
+      "from": "toraja",
+      "to": "labuan_bajo"
+    },
+    {
+      "from": "toraja",
+      "to": "raja_ampat"
+    },
+    {
+      "from": "labuan_bajo",
+      "to": "merauke"
+    },
+    {
+      "from": "raja_ampat",
+      "to": "merauke"
+    }
+  ],
+  "presets": {
+    "short": {
+      "enabled": false,
+      "start": "jakarta",
+      "finish": "merauke",
+      "winsRequired": 2,
+      "routeLength": {
+        "min": 3,
+        "max": 4
+      }
+    },
+    "standard": {
+      "enabled": true,
+      "start": "sabang",
+      "finish": "merauke",
+      "winsRequired": 2,
+      "routeLength": {
+        "min": 5,
+        "max": 6
+      }
+    },
+    "long": {
+      "enabled": false,
+      "start": "sabang",
+      "finish": "merauke",
+      "winsRequired": 2,
+      "routeLength": {
+        "min": 5,
+        "max": 6
+      }
+    }
+  },
+  "places": [
+    {
+      "id": "tugu_km0",
+      "regionId": "sabang",
+      "name": {
+        "id": "Tugu Kilometer Nol"
+      },
+      "hint": {
+        "id": "Titik paling barat negeri ini"
+      },
+      "image": "places/tugu_km0.webp",
+      "icon": "icons/tugu_km0.png"
+    },
+    {
+      "id": "istana_maimun",
+      "regionId": "medan",
+      "name": {
+        "id": "Istana Maimun"
+      },
+      "hint": {
+        "id": "Istana kuning Kesultanan Deli"
+      },
+      "image": "places/istana_maimun.webp",
+      "icon": "icons/istana_maimun.png"
+    },
+    {
+      "id": "jam_gadang",
+      "regionId": "padang",
+      "name": {
+        "id": "Jam Gadang"
+      },
+      "hint": {
+        "id": "Menara jam besar di dataran tinggi"
+      },
+      "image": "places/jam_gadang.webp",
+      "icon": "icons/jam_gadang.png"
+    },
+    {
+      "id": "rumah_gadang",
+      "regionId": "padang",
+      "name": {
+        "id": "Rumah Gadang"
+      },
+      "hint": {
+        "id": "Atap runcing seperti tanduk kerbau"
+      },
+      "image": "places/rumah_gadang.webp",
+      "icon": "icons/rumah_gadang.png"
+    },
+    {
+      "id": "monas",
+      "regionId": "jakarta",
+      "name": {
+        "id": "Monas"
+      },
+      "hint": {
+        "id": "Tugu tinggi berpuncak emas"
+      },
+      "image": "places/monas.webp",
+      "icon": "icons/monas.png"
+    },
+    {
+      "id": "tugu_jogja",
+      "regionId": "yogyakarta",
+      "name": {
+        "id": "Tugu Yogyakarta"
+      },
+      "hint": {
+        "id": "Tugu putih di tengah perempatan"
+      },
+      "image": "places/tugu_jogja.webp",
+      "icon": "icons/tugu_jogja.png"
+    },
+    {
+      "id": "malioboro",
+      "regionId": "yogyakarta",
+      "name": {
+        "id": "Malioboro"
+      },
+      "hint": {
+        "id": "Jalan belanja penuh andong"
+      },
+      "image": "places/malioboro.webp",
+      "icon": "icons/malioboro.png"
+    },
+    {
+      "id": "tanah_lot",
+      "regionId": "bali",
+      "name": {
+        "id": "Tanah Lot"
+      },
+      "hint": {
+        "id": "Pura di atas batu karang laut"
+      },
+      "image": "places/tanah_lot.webp",
+      "icon": "icons/tanah_lot.png"
+    },
+    {
+      "id": "tongkonan",
+      "regionId": "toraja",
+      "name": {
+        "id": "Tongkonan"
+      },
+      "hint": {
+        "id": "Rumah adat beratap seperti perahu"
+      },
+      "image": "places/tongkonan.webp",
+      "icon": "icons/tongkonan.png"
+    },
+    {
+      "id": "komodo",
+      "regionId": "labuan_bajo",
+      "name": {
+        "id": "Pulau Komodo"
+      },
+      "hint": {
+        "id": "Rumah kadal terbesar di dunia"
+      },
+      "image": "places/komodo.webp",
+      "icon": "icons/komodo.png"
+    },
+    {
+      "id": "pulau_padar",
+      "regionId": "labuan_bajo",
+      "name": {
+        "id": "Pulau Padar"
+      },
+      "hint": {
+        "id": "Bukit dengan tiga teluk berbeda warna"
+      },
+      "image": "places/pulau_padar.webp",
+      "icon": "icons/pulau_padar.png"
+    },
+    {
+      "id": "piaynemo",
+      "regionId": "raja_ampat",
+      "name": {
+        "id": "Piaynemo"
+      },
+      "hint": {
+        "id": "Gugusan pulau karst di laut biru"
+      },
+      "image": "places/piaynemo.webp",
+      "icon": "icons/piaynemo.png"
+    },
+    {
+      "id": "musamus",
+      "regionId": "merauke",
+      "name": {
+        "id": "Musamus"
+      },
+      "hint": {
+        "id": "Rumah semut setinggi orang dewasa"
+      },
+      "image": "places/musamus.webp",
+      "icon": "icons/musamus.png"
+    }
+  ],
+  "minigameThemes": {
+    "dodge_runner": {
+      "obstacles": [
+        "prop_becak",
+        "prop_bajaj",
+        "prop_gerobak_bakso",
+        "prop_ayam",
+        "prop_durian"
+      ]
+    },
+    "whack_a_mole": {
+      "target": "char_tikus_sawah",
+      "decoy": "char_kucing_oren"
+    },
+    "slingshot": {
+      "targets": [
+        "prop_kelapa",
+        "prop_kendi",
+        "prop_layangan"
+      ]
+    },
+    "memory_match": {
+      "icons": [
+        "icons/rendang.png",
+        "icons/sate.png",
+        "icons/nasi_goreng.png",
+        "icons/bakso.png",
+        "icons/es_kelapa.png",
+        "icons/wayang.png"
+      ]
+    }
+  }
+}

@@ -1,0 +1,24 @@
+/**
+ * Full minigame definition = pure logic half (src/logic/minigames) + render half (create).
+ * Matches minigames.md §1.2, with one addition: MinigameInstance.advance(dtMs). The host
+ * drives play time from the game loop so pause and the debug time scale apply to
+ * minigames exactly like to the rest of the match.
+ */
+import type { MinigameContext, MinigameLogic, MinigameResult } from '../../logic';
+
+export interface MinigameInstance {
+  /** Called by the shell after the intro. */
+  start(): void;
+  /** Advance play time by dtMs (game time; 0 while paused). */
+  advance(dtMs: number): void;
+  pause(): void;
+  resume(): void;
+  /** Remove listeners and DOM; must be safe to call more than once. */
+  destroy(): void;
+  /** Called exactly once. */
+  onFinish(cb: (r: MinigameResult) => void): void;
+}
+
+export interface MinigameDefinition<Level = any> extends MinigameLogic<Level, any, any> {
+  create(container: HTMLElement, ctx: MinigameContext, level: Level): MinigameInstance;
+}

@@ -66,3 +66,21 @@ describe('Rng', () => {
     expect(() => r.pick([])).toThrow(RangeError);
   });
 });
+
+import { createStream, streamSeed } from '../src/logic/rng';
+
+describe('named streams', () => {
+  it('are stable and depend on every part of (matchSeed, playerId, label)', () => {
+    expect(streamSeed(42, 'p1', 'minigamePick')).toBe(streamSeed(42, 'p1', 'minigamePick'));
+    const all = new Set([
+      streamSeed(42, 'p1', 'minigamePick'),
+      streamSeed(43, 'p1', 'minigamePick'),
+      streamSeed(42, 'p2', 'minigamePick'),
+      streamSeed(42, 'p1', 'bot'),
+      streamSeed(42, 'p1', 'minigameParams:a:0'),
+      streamSeed(42, 'p1', 'minigameParams:a:1'),
+    ]);
+    expect(all.size).toBe(6);
+    expect(draw(createStream(1, 'x', 'cards'), 5)).toEqual(draw(createStream(1, 'x', 'cards'), 5));
+  });
+});

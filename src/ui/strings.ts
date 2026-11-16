@@ -1,0 +1,39 @@
+/** UI strings by key (ui-flow §1: all text via keys; Indonesian first, English later). */
+const ID: Record<string, string> = {
+  'mg.tap_timing.intro': 'Tap saat jarum di zona hijau!',
+  'mg.result.pass': 'BERHASIL!',
+  'mg.result.fail': 'GAGAL',
+  'mg.paused': 'Jeda',
+  'difficulty.easy': 'mudah',
+  'difficulty.medium': 'sedang',
+  'difficulty.hard': 'sulit',
+  'race.start': 'Mulai',
+  'race.pickTarget': 'Pilih region tujuan',
+  'race.pickTargetHint': 'Tap region yang bersinar',
+  'race.final': 'FINAL · menang 2× di sini = juara',
+  'race.winsLeft': '{n} win lagi',
+  'race.switchConfirm': 'Progres {w}/{W} akan hilang. Ganti target?',
+  'race.switchYes': 'Ganti',
+  'race.switchNo': 'Batal',
+  'race.status.playing': 'sedang main',
+  'race.status.cooldown': 'cooldown',
+  'race.status.choosing': 'memilih',
+  'race.status.ready': 'siap',
+  'race.status.finished': 'finish',
+  'race.finishedToast': '{name} sampai {finish}!',
+  'pause.title': 'Jeda',
+  'pause.resume': 'Lanjut',
+  'pause.quit': 'Keluar',
+  'pause.quitConfirm': 'Keluar dari balapan? Progres hilang.',
+  'results.title': 'Hasil',
+  'results.youWin': 'Kamu juara!',
+  'results.winner': '{name} juara!',
+  'results.time': 'Waktu match',
+  'results.again': 'Main Lagi',
+  'you': 'Kamu',
+};
+
+export function t(key: string, vars: Record<string, string | number> = {}): string {
+  const s = ID[key] ?? key;
+  return s.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`));
+}

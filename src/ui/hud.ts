@@ -1,118 +1,253 @@
 /**
- * HTML/CSS HUD overlay. Reads state, never writes it: buttons call back into main.ts,
- * which turns them into GameActions on the human controller.
+ * Race HUD (HTML/CSS overlay, ui-flow §3, §10). Reads state, never writes it: controls call
+ * back into main.ts, which turns them into GameActions on the human controller.
+ * render() is cheap to call every frame; each section's DOM only changes when its HTML does.
  */
-import { COOLDOWN_MS, legalMoves, nodeDifficulty, type GameEvent, type GameState, type MapGraph } from '../logic';
+import {
+  cooldownRemainingMs,
+  localize,
+  ranking,
+  regionDifficulty,
+  totalWins,
+  type GameEvent,
+  type GameState,
+  type MapGraph,
+  type PlayerState,
+} from '../logic';
+import { PLAYER_CSS_COLORS } from '../render/palette';
+import { t } from './strings';
 import './hud.css';
 
 export interface HudCallbacks {
-  onMoveTo(nodeId: string): void;
-  /** PLACEHOLDER for the minigame system: resolves the current region instantly. */
-  onChallengeResult(success: boolean): void;
-  onRestart(): void;
+  onSelectTarget(regionId: string): void;
+  onStart(): void;
+  onPause(): void;
+  onResume(): void;
+  onQuit(): void;
+  onPlayAgain(): void;
 }
 
-const PHASE_LABEL = { ready: 'siap jalan', challenge: 'main minigame', cooldown: 'cooldown', finished: 'finish' } as const;
-const DIFF_LABEL = { easy: 'mudah', medium: 'sedang', hard: 'sulit' } as const;
-const CSS_COLORS = ['#ff4d6d', '#3a86ff', '#2ec4b6', '#ffb703'];
-
 export class Hud {
-  private readonly top: HTMLElement;
-  private readonly panel: HTMLElement;
-  private readonly log: HTMLElement;
-  private readonly overlay: HTMLElement;
-  private topKey = '';
-  private panelKey = '';
+  private readonly el: Record<'progress' | 'panel' | 'toast' | 'dialog' | 'pause' | 'results', HTMLElement>;
+  private readonly cache = new Map<HTMLElement, string>();
+  private toastUntil = 0;
+  private pendingSwitch: string | null = null;
+  private confirmingQuit = false;
+  private paused = false;
+  private resultsVisible = false;
+  private locked = false;
+
+  private readonly root: HTMLElement;
 
   constructor(
-    root: HTMLElement,
+    parent: HTMLElement,
     private readonly map: MapGraph,
     private readonly humanId: string,
     private readonly cb: HudCallbacks,
   ) {
+    const root = document.createElement('div');
+    root.className = 'hud-root';
+    parent.appendChild(root);
+    this.root = root;
     root.innerHTML = `
-      <header class="hud-top"></header>
-      <div class="hud-log" aria-live="polite"></div>
-      <section class="hud-panel"></section>
-      <div class="hud-overlay" hidden></div>`;
-    this.top = root.querySelector('.hud-top') as HTMLElement;
-    this.log = root.querySelector('.hud-log') as HTMLElement;
-    this.panel = root.querySelector('.hud-panel') as HTMLElement;
-    this.overlay = root.querySelector('.hud-overlay') as HTMLElement;
+      <header class="hud-top">
+        <ol class="progress" data-testid="progress-list"></ol>
+        <button class="icon-btn" data-action="pause" data-testid="btn-pause" aria-label="${t('pause.title')}">⏸</button>
+      </header>
+      <div class="hud-toast" data-testid="toast" aria-live="polite" hidden></div>
+      <section class="target-panel" data-testid="target-panel"></section>
+      <div class="hud-modal" data-testid="confirm-switch" hidden></div>
+      <div class="hud-modal" data-testid="pause-overlay" hidden></div>
+      <div class="hud-modal results" data-testid="results-screen" hidden></div>`;
+    const q = (s: string) => root.querySelector(s) as HTMLElement;
+    this.el = {
+      progress: q('.progress'),
+      panel: q('.target-panel'),
+      toast: q('.hud-toast'),
+      dialog: q('[data-testid="confirm-switch"]'),
+      pause: q('[data-testid="pause-overlay"]'),
+      results: q('[data-testid="results-screen"]'),
+    };
 
     root.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest('button');
-      if (!btn) return;
-      const { move, result, restart } = btn.dataset;
-      if (move) this.cb.onMoveTo(move);
-      else if (result) this.cb.onChallengeResult(result === 'win');
-      else if (restart !== undefined) this.cb.onRestart();
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]');
+      if (!btn || btn.disabled) return;
+      switch (btn.dataset.action) {
+        case 'start': this.cb.onStart(); break;
+        case 'pause': if (!this.locked) this.cb.onPause(); break;
+        case 'resume': this.confirmingQuit = false; this.cb.onResume(); break;
+        case 'quit': this.confirmingQuit = true; this.renderPause(); break;
+        case 'quit-yes': this.confirmingQuit = false; this.cb.onQuit(); break;
+        case 'quit-no': this.confirmingQuit = false; this.renderPause(); break;
+        case 'switch-yes': {
+          const id = this.pendingSwitch;
+          this.closeSwitch();
+          if (id) this.cb.onSelectTarget(id);
+          break;
+        }
+        case 'switch-no': this.closeSwitch(); break;
+        case 'again': this.cb.onPlayAgain(); break;
+      }
     });
   }
 
-  /** Cheap to call every frame: DOM is only touched when the visible text changes. */
+  /** Target choice from the board: asks for confirmation when partial wins would be lost. */
+  requestTarget(state: Readonly<GameState>, regionId: string): void {
+    const me = this.me(state);
+    if (!me || this.locked) return;
+    if (me.targetId && me.targetId !== regionId && me.winsAtTarget > 0) {
+      this.pendingSwitch = regionId;
+      this.el.dialog.innerHTML = `<div class="card">
+        <p>${t('race.switchConfirm', { w: me.winsAtTarget, W: this.map.winsRequired })}</p>
+        <div class="row">
+          <button data-action="switch-no" data-testid="btn-switch-no">${t('race.switchNo')}</button>
+          <button data-action="switch-yes" class="warn" data-testid="btn-switch-yes">${t('race.switchYes')}</button>
+        </div></div>`;
+      this.el.dialog.hidden = false;
+      return;
+    }
+    this.cb.onSelectTarget(regionId);
+  }
+
+  dispose(): void {
+    this.root.remove();
+  }
+
+  setPaused(paused: boolean): void {
+    this.paused = paused;
+    this.renderPause();
+  }
+
+  /** DR-06: from playerFinished on, every control is disabled. */
+  lock(): void {
+    this.locked = true;
+    this.closeSwitch();
+    this.root.classList.add('locked');
+  }
+
   render(state: Readonly<GameState>): void {
-    const nodeName = (id: string) => this.map.nodes.get(id)?.name ?? id;
-
-    const chips = state.players.map((p) => {
-      const cd = p.phase === 'cooldown' ? ` ${Math.ceil((p.cooldownUntilMs - state.timeMs) / 1000)}s` : '';
-      return `<li class="chip${p.id === this.humanId ? ' me' : ''}">
-        <span class="dot" style="background:${CSS_COLORS[p.colorIndex % CSS_COLORS.length]}"></span>
-        <b>${esc(p.name)}</b> <span>${esc(nodeName(p.nodeId))}</span>
-        <small>${PHASE_LABEL[p.phase]}${cd}${p.place ? ` #${p.place}` : ''}</small></li>`;
+    const total = totalWins(this.map);
+    const rows = ranking(state).map((p, i) => {
+      const pct = Math.round((1 - p.remainingWins / total) * 100);
+      return `<li class="prow${p.id === this.humanId ? ' me' : ''}" data-testid="progress-row-${p.id}" data-remaining="${p.remainingWins}">
+        <span class="rank">${i + 1}</span>
+        <span class="dot" style="background:${PLAYER_CSS_COLORS[p.colorIndex % PLAYER_CSS_COLORS.length]}"></span>
+        <span class="pname">${esc(p.id === this.humanId ? t('you') : p.name)}</span>
+        <span class="bar"><span style="width:${pct}%"></span></span>
+        <span class="left">${t('race.winsLeft', { n: p.remainingWins })}</span>
+        <span class="status" title="${this.statusText(state, p)}">${this.statusIcon(state, p)}</span></li>`;
     });
-    const topHtml = `<h1>Atlas Dash <span>${esc(this.map.data.name)}</span></h1><ul class="chips">${chips.join('')}</ul>`;
-    if (topHtml !== this.topKey) {
-      this.top.innerHTML = topHtml;
-      this.topKey = topHtml;
-    }
-
-    const me = state.players.find((p) => p.id === this.humanId);
-    let panelHtml = '';
-    if (me && state.status === 'running') {
-      if (me.phase === 'ready') {
-        const moves = legalMoves(this.map, me);
-        panelHtml = `<p>Pilih region berikutnya: tap tile yang bersinar, atau tekan angka.</p>
-          <div class="row">${moves
-            .map((id, i) => `<button data-move="${id}"><kbd>${i + 1}</kbd> ${esc(nodeName(id))}</button>`)
-            .join('')}</div>`;
-      } else if (me.phase === 'challenge') {
-        const diff = nodeDifficulty(this.map, me.nodeId);
-        panelHtml = `<p><b>${esc(nodeName(me.nodeId))}</b>: minigame ${DIFF_LABEL[diff]} (placeholder)</p>
-          <div class="row"><button data-result="win" class="ok">Menang</button>
-          <button data-result="lose" class="bad">Kalah (cooldown ${COOLDOWN_MS[diff] / 1000}s)</button></div>`;
-      } else if (me.phase === 'cooldown') {
-        const s = Math.max(0, Math.ceil((me.cooldownUntilMs - state.timeMs) / 1000));
-        panelHtml = `<p>Kalah. Coba lagi dalam <b>${s}s</b>…</p>`;
-      }
-    }
-    if (panelHtml !== this.panelKey) {
-      this.panel.innerHTML = panelHtml;
-      this.panel.hidden = panelHtml === '';
-      this.panelKey = panelHtml;
-    }
-
-    if (state.status === 'finished') {
-      const winner = state.players.find((p) => p.id === state.winnerId);
-      const html = `<div class="card"><h2>${winner?.id === this.humanId ? 'Kamu menang!' : `${esc(winner?.name ?? '?')} menang`}</h2>
-        <button data-restart class="ok">Main lagi</button></div>`;
-      if (this.overlay.hidden || this.overlay.innerHTML !== html) this.overlay.innerHTML = html;
-      this.overlay.hidden = false;
-    } else {
-      this.overlay.hidden = true;
+    this.patch(this.el.progress, rows.join(''));
+    this.renderPanel(state);
+    if (this.toastUntil > 0 && performance.now() > this.toastUntil) {
+      this.el.toast.hidden = true;
+      this.toastUntil = 0;
     }
   }
 
-  /** One-line feed of what other players did. */
   showEvents(state: Readonly<GameState>, events: readonly GameEvent[]): void {
-    const name = (id: string) => state.players.find((p) => p.id === id)?.name ?? id;
-    const nodeName = (id: string) => this.map.nodes.get(id)?.name ?? id;
     for (const e of events) {
-      if (e.type === 'playerMoved') this.log.textContent = `${name(e.playerId)} → ${nodeName(e.to)}`;
-      else if (e.type === 'challengeResolved' && e.playerId !== this.humanId) {
-        this.log.textContent = `${name(e.playerId)} ${e.success ? 'menang' : 'kalah'} di ${nodeName(e.nodeId)}`;
+      if (e.type === 'playerFinished' && e.playerId !== this.humanId) {
+        const p = state.players.find((x) => x.id === e.playerId);
+        this.toast(t('race.finishedToast', { name: p?.name ?? e.playerId, finish: localize(this.map.regions.get(this.map.finishId)?.name) }));
       }
     }
+  }
+
+  showResults(state: Readonly<GameState>): void {
+    if (this.resultsVisible) return;
+    this.resultsVisible = true;
+    const winner = state.players.find((p) => p.id === state.winnerId);
+    const title = winner?.id === this.humanId ? t('results.youWin') : t('results.winner', { name: esc(winner?.name ?? '?') });
+    const secs = Math.round((winner?.finishedAtMs ?? state.timeMs) / 1000);
+    const rows = ranking(state).map((p, i) => `<li data-testid="results-row-${p.id}">
+      <span class="rank">#${i + 1}</span>
+      <span class="dot" style="background:${PLAYER_CSS_COLORS[p.colorIndex % PLAYER_CSS_COLORS.length]}"></span>
+      <span class="pname">${esc(p.id === this.humanId ? t('you') : p.name)}</span>
+      <span class="left">${p.place ? localize(this.map.regions.get(this.map.finishId)?.name) : t('race.winsLeft', { n: p.remainingWins })}</span></li>`);
+    this.el.results.innerHTML = `<div class="card">
+      <h2>${title}</h2>
+      <ol class="podium">${rows.join('')}</ol>
+      <p class="muted">${t('results.time')}: ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</p>
+      <button data-action="again" class="ok big" data-testid="btn-play-again">${t('results.again')}</button></div>`;
+    this.el.results.hidden = false;
+    (this.el.results.querySelector('button') as HTMLButtonElement).focus();
+  }
+
+  private renderPanel(state: Readonly<GameState>): void {
+    const me = this.me(state);
+    let html = '';
+    if (me && !this.locked && state.status === 'running' && me.phase === 'idle') {
+      if (!me.targetId) {
+        html = `<p class="title">${t('race.pickTarget')}</p><p class="muted">${t('race.pickTargetHint')}</p>`;
+      } else {
+        const region = this.map.regions.get(me.targetId);
+        const diff = regionDifficulty(this.map, me.targetId);
+        const cd = cooldownRemainingMs(state, me);
+        const final = this.map.finalRegions.has(me.targetId) ? `<p class="final" data-testid="target-final">${t('race.final')}</p>` : '';
+        const button = cd > 0
+          ? `<button class="start cooling" disabled data-action="start" data-testid="btn-start" data-cooldown="${Math.ceil(cd / 1000)}">
+               <span class="cd" data-testid="cooldown-timer">⏱ ${Math.ceil(cd / 1000)}</span></button>`
+          : `<button class="start" data-action="start" data-testid="btn-start">${t('race.start')}</button>`;
+        html = `<p class="title"><span data-testid="target-name">${esc(localize(region?.name))}</span>
+            <span class="badge d-${diff}">${t(`difficulty.${diff}`)}</span>
+            <span class="wins" data-testid="target-wins">${me.winsAtTarget}/${this.map.winsRequired}</span></p>
+          ${final}${button}`;
+      }
+    }
+    this.el.panel.hidden = html === '';
+    this.patch(this.el.panel, html);
+  }
+
+  private renderPause(): void {
+    if (!this.paused) {
+      this.el.pause.hidden = true;
+      return;
+    }
+    this.el.pause.innerHTML = this.confirmingQuit
+      ? `<div class="card"><p>${t('pause.quitConfirm')}</p><div class="row">
+          <button data-action="quit-no" data-testid="btn-quit-no">${t('race.switchNo')}</button>
+          <button data-action="quit-yes" class="warn" data-testid="btn-quit-yes">${t('pause.quit')}</button></div></div>`
+      : `<div class="card"><h2>${t('pause.title')}</h2><div class="col">
+          <button data-action="resume" class="ok big" data-testid="btn-resume">${t('pause.resume')}</button>
+          <button data-action="quit" data-testid="btn-quit">${t('pause.quit')}</button></div></div>`;
+    this.el.pause.hidden = false;
+    (this.el.pause.querySelector('button.ok, button.warn') as HTMLButtonElement | null)?.focus();
+  }
+
+  private closeSwitch(): void {
+    this.pendingSwitch = null;
+    this.el.dialog.hidden = true;
+  }
+
+  private toast(text: string): void {
+    this.el.toast.textContent = text;
+    this.el.toast.hidden = false;
+    this.toastUntil = performance.now() + 1500;
+  }
+
+  private me(state: Readonly<GameState>): PlayerState | undefined {
+    return state.players.find((p) => p.id === this.humanId);
+  }
+
+  private statusIcon(state: Readonly<GameState>, p: PlayerState): string {
+    if (p.phase === 'finished') return '🏁';
+    if (p.phase === 'playing') return '🎮';
+    if (cooldownRemainingMs(state, p) > 0) return '⏱';
+    return p.targetId ? '▶' : '🗺';
+  }
+
+  private statusText(state: Readonly<GameState>, p: PlayerState): string {
+    if (p.phase === 'finished') return t('race.status.finished');
+    if (p.phase === 'playing') return t('race.status.playing');
+    if (cooldownRemainingMs(state, p) > 0) return t('race.status.cooldown');
+    return t(p.targetId ? 'race.status.ready' : 'race.status.choosing');
+  }
+
+  private patch(el: HTMLElement, html: string): void {
+    if (this.cache.get(el) === html) return;
+    this.cache.set(el, html);
+    el.innerHTML = html;
   }
 }
 

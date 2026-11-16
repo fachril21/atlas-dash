@@ -118,3 +118,19 @@ export class Rng {
     return r;
   }
 }
+
+/**
+ * Named RNG streams (DR-04, minigames.md §1.2.1): every stream is seeded with
+ * hash(matchSeed, playerId, label), so one player's actions never shift another player's
+ * results. Labels: "minigamePick", "minigameParams:<targetId>:<attemptIndex>", "cards",
+ * "bot", "copet".
+ */
+export function streamSeed(matchSeed: number, playerId: string, label: string): number {
+  // FNV-1a over a canonical string, then one splitmix round for avalanche.
+  const h = hashSeed(`${matchSeed >>> 0}|${playerId}|${label}`);
+  return splitmix32(h)();
+}
+
+export function createStream(matchSeed: number, playerId: string, label: string): Rng {
+  return new Rng(streamSeed(matchSeed, playerId, label));
+}

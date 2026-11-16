@@ -1,17 +1,20 @@
 # Minigame — Spesifikasi MVP
 
-**Status:** designed · **Updated:** 2026-11-16 · Kembali ke [GDD](gdd.md) · Requirement: R2, R3, R7, M1, M2, K1
+**Status:** designed · **Updated:** 2026-11-16 (v0.3, CP3a: DR-02, DR-04, DR-05, DR-17/20/21 untuk Tap Tepat Waktu) · Kembali ke [GDD](gdd.md) · Requirement: R2, R3, R7, M1, M2, K1
 
 7 minigame MVP (R7). Semua angka adalah titik awal untuk playtest. Nilai cooldown (R2) dan jumlah kartu (K1) **tidak** didefinisikan di sini; itu milik race layer ([gdd.md](gdd.md), [cards.md](cards.md)).
 
 ## 1. Aturan umum
 
 ### 1.1 Alur satu percobaan (dikelola "minigame shell", bukan oleh tiap minigame)
-1. **Intro 3 detik** ("aturan 3 detik"): 1 kalimat ≤ 8 kata + 1 animasi ikon yang memperagakan input + hitung mundur 3-2-1. Tidak ada tombol skip di percobaan pertama per match; di percobaan ulang minigame yang sama, intro dipersingkat jadi 1,5 s `[ASSUMPTION]`.
+0. **Mulai:** setiap percobaan (termasuk ulang setelah gagal) dimulai oleh pemain menekan **Mulai**, dan hanya bila cooldown pemain sudah habis (DR-05).
+1. **Intro** ("aturan 3 detik"): 1 kalimat ≤ 8 kata + 1 animasi ikon yang memperagakan input + hitung mundur. **3 s** untuk percobaan pertama sebuah minigame hasil undian; **1,5 s** untuk percobaan ulang setelah gagal (minigame sama, lihat §1.3). Tidak ada tombol skip.
 2. **Main:** timer bar di atas. Minigame selesai lebih awal saat pass terpenuhi, atau saat fail sudah pasti (nyawa habis, salah melebihi batas).
 3. **Banner hasil 1,2 s:** "BERHASIL!" / "GAGAL". Lalu kembali ke race layer.
 
-Durasi dasar 15–30 s. Setelah modifier kartu, durasi di-clamp **10–40 s**.
+**Pause di dalam minigame:** `pause()` membekukan timer minigame dan semua gerak; shell menutup area main dengan overlay pause (konten tidak terlihat); waktu pause tidak dihitung di `timeTakenMs`. Pause saat intro membekukan hitung mundur intro. (Aturan pause di luar minigame: CP3b, DR-08.)
+
+Durasi dasar 15–30 s. **Clamp oleh race layer:** race layer menjumlah semua `timeDelta` lalu meng-clamp-nya sehingga `durasi dasar + timeDelta` berada di **10–40 s**; minigame menerima `timeDelta` yang sudah di-clamp dan tidak meng-clamp lagi. Contoh Tap Tepat Waktu (dasar 20 s): 2× Jam Rusak (−10) → 10 s; 3× Jam Rusak tidak mungkin (maxStacks 2). Minigame dengan pemetaan `timeDelta` khusus (Hindari Rintangan, Tebak Lokasi) memakai nilai yang sudah di-clamp ini (contoh lain: CP3b/CP4, DR-17).
 
 ### 1.2 Interface (TypeScript, dibangun engineer)
 
@@ -29,7 +32,7 @@ export type MinigameModifier =
   | { kind: 'hint' };                        // bantuan (Teropong)
 
 export interface MinigameContext {
-  seed: number;                 // uint32; SEMUA random lewat PRNG dari seed ini (mis. mulberry32). Dilarang Math.random()
+  seed: number;                 // uint32 dari stream `minigameParams` (§1.2.1); SEMUA random lewat PRNG dari seed ini. Dilarang Math.random()
   difficulty: Difficulty;       // difficulty efektif
   modifiers: MinigameModifier[];
   map: MapData;                 // data peta aktif (lihat map-indonesia.md)
@@ -45,12 +48,18 @@ export interface MinigameResult {
   reason: 'success' | 'timeout' | 'failLimit' | 'aborted';
 }
 
-export interface MinigameDefinition {
+export interface MinigameDefinition<Level = unknown, Input = unknown, State = unknown> {
   id: string;                   // 'tap_timing' | 'simon' | ...
   render: '2d' | '3d';
   introKey: string;             // key string kalimat aturan
   requires?: (map: MapData) => boolean; // mis. Tebak Lokasi butuh >= 8 places
-  create(container: HTMLElement, ctx: MinigameContext): MinigameInstance;
+  // PURE (tanpa DOM/three.js, bisa dites di Vitest node):
+  generateLevel(ctx: MinigameContext): Level;              // semua parameter run, dari seed + difficulty + modifiers
+  initState(level: Level): State;
+  step(level: Level, state: State, input: Input | null, tMs: number): State; // aturan main; tMs = waktu main sejak start
+  result(level: Level, state: State): MinigameResult | null;                // null = belum selesai
+  // Render (memakai hasil generateLevel/step, tidak membuat random sendiri):
+  create(container: HTMLElement, ctx: MinigameContext, level: Level): MinigameInstance;
 }
 
 export interface MinigameInstance {
@@ -63,17 +72,33 @@ export interface MinigameInstance {
 ```
 
 Aturan kontrak:
-- **Deterministik:** seed + difficulty + modifiers yang sama → parameter level yang sama. Bot memakai seed yang sama untuk simulasi.
-- **Seed per percobaan:** `seed = hash(matchSeed, playerId, attemptIndex)`. Ulang setelah gagal = seed baru = parameter acak baru.
+- **Deterministik:** seed + difficulty + modifiers yang sama → `generateLevel` menghasilkan level yang sama; urutan input + waktu yang sama → `step`/`result` menghasilkan hasil yang sama.
+- **Seed per percobaan:** lihat §1.2.1. Ulang setelah gagal = minigame sama, seed baru = parameter acak baru.
 - **Input:** semua pakai Pointer Events (mouse + touch satu jalur). Keyboard opsional untuk desktop (tercantum per minigame). Target sentuh ≥ 48 px CSS.
 - **2D** = overlay HTML/CSS (atau canvas 2D) di atas race view yang di-blur. **3D** = scene three.js terpisah yang dirender ke canvas yang sama selama minigame; race scene berhenti render.
 - Modifier yang tidak dikenali sebuah minigame diabaikan dengan log warning (tidak crash).
 
-### 1.3 Pemilihan minigame (M2)
-- Diambil acak (seeded) dari pool yang `requires(map)` lolos.
-- Tidak boleh sama dengan minigame terakhir yang dimainkan pemain itu.
-- Difficulty = difficulty tipe region ([map-indonesia.md](map-indonesia.md#2-tipe-region)), lalu digeser kartu (clamp easy..hard).
-- Region start dan finish tidak pernah memanggil minigame (D-004).
+#### 1.2.1 Stream RNG (DR-04, satu-satunya daftar)
+Setiap stream adalah PRNG sendiri (mis. mulberry32) dengan seed `hash(matchSeed, playerId, label)`, jadi aksi pemain lain tidak pernah menggeser hasil pemain ini.
+
+| Stream | `label` | Dipakai untuk |
+|---|---|---|
+| Pemilihan minigame | `minigamePick` | undian minigame per target (§1.3); satu tarikan per undian |
+| Parameter minigame | `minigameParams:<targetId>:<attemptIndex>` | `ctx.seed` satu percobaan |
+| Penawaran kartu | `cards` | 5 kartu tawaran ([cards.md](cards.md#3-rarity-dan-comeback-r8)) |
+| Simulasi bot | `bot` | lulus/gagal + waktu bot (milik bot itu) |
+| Copet / pantulan | `copet` | kartu yang dicuri; milik pemain yang mencuri (pada pantulan: milik pemilik Cermin Balik) |
+
+- `attemptIndex` = jumlah percobaan pemain itu **pada target ini** sebelum percobaan sekarang (mulai 0), dihitung kumulatif per (pemain, target) dan tidak di-reset bila pemain ganti target lalu kembali.
+- `Math.random()` hanya boleh dipakai sekali: membuat `matchSeed` saat match baru (DR-21). Semua random lain lewat stream di atas.
+
+### 1.3 Pemilihan minigame (M2) dan percobaan ulang (DR-02)
+- Undian dari pool yang `requires(map)` lolos, memakai stream `minigamePick`.
+- **Setelah gagal:** percobaan berikutnya pada target yang sama = **minigame sama**, seed baru (`attemptIndex` + 1), intro 1,5 s. Tidak diundi ulang.
+- **Setelah menang** (win ke-1 → ke-2 di target yang sama) dan **saat target baru dipilih** (region baru, atau ganti target): diundi ulang, **tidak boleh sama** dengan minigame terakhir yang dimainkan pemain itu. Jadi win ke-2 di sebuah region selalu memakai minigame berbeda dari win ke-1.
+- **Pool hanya 1 minigame** (CP3a: hanya Tap Tepat Waktu): aturan "tidak boleh sama" dilewati, minigame itu dipakai terus.
+- Difficulty = difficulty tipe region target ([map-indonesia.md](map-indonesia.md#2-tipe-region)), lalu digeser kartu (clamp easy..hard).
+- Region start dan finish tidak pernah memanggil minigame (D-004); difficulty tipe region mereka diabaikan.
 
 ### 1.4 Feedback (game feel, dipakai semua minigame)
 
@@ -101,10 +126,15 @@ Setiap minigame mendefinisikan arti tiap modifier di tabelnya. Default bila tida
 ## 2. Tap Tepat Waktu (`tap_timing`) — 2D
 **Aturan 3 detik:** "Tap saat jarum di zona hijau!" (ikon: jarum lewat zona, jari tap).
 
-- **Input:** tap/klik di mana saja di area main; desktop juga Spasi.
-- **Lulus:** kena zona sebanyak `hitsRequired` kali sebelum salah melebihi `missesAllowed` dan sebelum waktu habis. Tap di luar zona = 1 miss. Setelah tiap kena, zona pindah posisi.
+- **Input:** tap/klik (pointerdown) di mana saja di area main; desktop juga Spasi (keydown, tanpa auto-repeat). Waktu input = timestamp event, bukan waktu frame berikutnya.
+- **Aturan kena:** posisi jarum `p` (0..1, pusat jarum) pada waktu input; kena bila `zoneStart ≤ p ≤ zoneStart + zoneWidth` (batas inklusif). Selain itu = 1 miss.
+- **Input lock:** 0,25 s setelah setiap tap (kena atau miss), input berikutnya diabaikan (bukan miss), supaya double-tap tidak jadi 2 miss.
+- **Lulus:** kena zona sebanyak `hitsRequired` kali sebelum waktu habis. **Gagal** (`failLimit`) segera saat miss > `missesAllowed`; **gagal** (`timeout`) bila waktu habis. Setelah tiap kena, zona pindah ke posisi berikutnya dari daftar level. Jarum terus bergerak (tidak di-reset).
 - **Durasi:** 20 s.
-- **Acak per run:** posisi zona tiap tap (tidak overlap posisi sebelumnya), arah awal jarum, kecepatan ±10%.
+- **`progress`** = kena / `hitsRequired`. **`timeTakenMs`** = waktu saat kena terakhir (lulus) atau saat gagal.
+- **Acak per run (semua di `generateLevel`):** daftar posisi zona (`hitsRequired` + 2 cadangan untuk extraTarget), masing-masing seluruhnya di dalam bar, `zoneStart` ∈ [0,05; 0,95 − zoneWidth], dan pusatnya berjarak ≥ 0,25 dari pusat zona sebelumnya; posisi awal jarum 0 atau 1 (arah ke tengah); faktor kecepatan ×U(0,9; 1,1) sekali per run.
+- **Gerak jarum:** bolak-balik (memantul di 0 dan 1) dengan kecepatan tetap `needleSpeed` (lebar bar/s). Di hard, zona ikut bergerak bolak-balik di dalam batas [0,05; 0,95] dengan `zoneMoveSpeed`, arah awal acak.
+- **Level (output `generateLevel`):** `{ durationMs, hitsRequired, missesAllowed, zoneWidth, needleSpeed, zoneMoveSpeed, zoneStarts[], needleStart, zoneDir, hint, fog[] }`.
 
 | Knob | easy | medium | hard |
 |---|---|---|---|
@@ -112,16 +142,18 @@ Setiap minigame mendefinisikan arti tiap modifier di tabelnya. Default bila tida
 | missesAllowed | 2 | 1 | 0 |
 | lebar zona (% bar) | 22% | 15% | 9% |
 | kecepatan jarum (lebar bar/s, bolak-balik) | 0,8 | 1,2 | 1,7 |
-| zona bergerak | tidak | tidak | ya, 0,15 lebar bar/s |
+| zoneMoveSpeed (lebar bar/s) | 0 | 0 | 0,15 |
 
 | Modifier | Efek |
 |---|---|
-| timeDelta | durasi ± detik |
-| tolerance | lebar zona ×mult |
-| speed | kecepatan jarum ×mult |
-| extraTarget | hitsRequired +count |
-| fog | kabut menutupi 2 potong bar (masing-masing 20%), bergeser tiap 2 s |
+| timeDelta | durasi ± detik (sudah di-clamp race layer, §1.1) |
+| tolerance | lebar zona ×mult, maks 0,40 |
+| speed | `needleSpeed` dan `zoneMoveSpeed` ×mult |
+| extraTarget | hitsRequired +count (maks +2) |
+| fog | kabut menutupi 2 potong bar (masing-masing 20%), pindah ke posisi acak berikutnya tiap 2 s (posisi dari `generateLevel`); kabut tidak pernah menutupi lebih dari 50% lebar zona. reducedMotion: kabut tidak berpindah |
 | hint | zona bersinar + bunyi "tik" 0,15 s sebelum jarum masuk zona |
+
+Di CP3a belum ada kartu, jadi `modifiers` selalu kosong; tabel di atas berlaku mulai CP4.
 
 ## 3. Simon (`simon`) — 2D
 **Aturan 3 detik:** "Ulangi urutan warnanya!" (ikon: 2 pad menyala, jari menekan).

@@ -1,4 +1,4 @@
-/** Screen point -> map node id, by raycasting the board's pickable meshes. */
+/** Screen point -> map region id, by raycasting the board's pickable meshes. */
 import * as THREE from 'three';
 
 export class NodePicker {
@@ -19,7 +19,7 @@ export class NodePicker {
     this.raycaster.setFromCamera(this.ndc, this.camera);
     const hits = this.raycaster.intersectObjects(this.pickables as THREE.Object3D[], true);
     for (const h of hits) {
-      const id = h.object.userData.nodeId;
+      const id = h.object.userData.regionId;
       if (typeof id === 'string') return id;
     }
     return null;

@@ -1,49 +1,79 @@
 /**
- * Game state: plain, serializable data (no classes, no functions) so it can be cloned,
- * saved, diffed in tests and later sent from a Colyseus server.
+ * Game state: plain, serializable data (no classes, no functions), so it can be cloned,
+ * deep-compared in tests, exported in the debug log and later sent from a server.
+ *
+ * Movement model (D-011, map-indonesia.md §1): a player stands on a conquered region
+ * (`nodeId`), picks an outgoing neighbour as `targetId`, and needs `winsRequired` wins
+ * there before the pawn moves.
  */
 import type { Difficulty, MapGraph } from './map';
-import { Rng, type RngState } from './rng';
+import { createStream, type RngState } from './rng';
 
 export type PlayerKind = 'human' | 'bot';
 export type BotLevel = 'easy' | 'normal' | 'hard';
 
 /**
- * - ready:     current region is cleared; the player may move to an adjacent region.
- * - challenge: the player is on an uncleared region and must win its minigame (no skipping).
- * - cooldown:  the player lost the minigame and waits before retrying (R2).
- * - finished:  the player reached a finish region (R1).
+ * - idle:     in the race view (may be choosing a target, ready, or cooling down).
+ * - playing:  a minigame attempt is running (intro included).
+ * - finished: won the match (playerFinished).
  */
-export type PlayerPhase = 'ready' | 'challenge' | 'cooldown' | 'finished';
+export type PlayerPhase = 'idle' | 'playing' | 'finished';
+
+export interface Attempt {
+  minigameId: string;
+  targetId: string;
+  /** ctx.seed, from "minigameParams:<targetId>:<attemptIndex>". */
+  seed: number;
+  difficulty: Difficulty;
+  attemptIndex: number;
+  /** 3000 for a freshly drawn minigame, 1500 for a retry after a fail (DR-02). */
+  introMs: number;
+  startedAtMs: number;
+}
 
 export interface PlayerState {
   id: string;
   name: string;
   kind: PlayerKind;
   botLevel?: BotLevel;
-  /** Index into the render palette; logic does not know colours. */
   colorIndex: number;
+  /** Conquered region the pawn stands on (finish once the player has won). */
   nodeId: string;
-  /** Every region entered so far, in order, starting with the start node. */
+  /** Regions conquered so far, in order, starting with the start region. */
   path: string[];
+  targetId: string | null;
+  winsAtTarget: number;
   phase: PlayerPhase;
-  /** Game time (ms) when the cooldown ends; only meaningful in phase "cooldown". */
+  /** Game time (ms) when the cooldown ends; 0 = none. Belongs to the player, not the target. */
   cooldownUntilMs: number;
-  /** Finishing place (1 = winner), set when phase becomes "finished". */
+  /** Minigame armed for the current target (drawn on target select / after a win). */
+  nextMinigameId: string | null;
+  /** True when the armed minigame is a retry of a failed attempt (1.5 s intro). */
+  retry: boolean;
+  lastMinigameId: string | null;
+  /** attemptIndex per target: attempts made on that target so far (never reset). */
+  attempts: Record<string, number>;
+  attempt: Attempt | null;
+  /** "minigamePick" stream state. */
+  pickRng: RngState;
+  /** remainingWins and when it last changed (ranking tie-break). */
+  remainingWins: number;
+  remainingWinsSinceMs: number;
   place?: number;
   finishedAtMs?: number;
 }
 
 export interface GameState {
   mapId: string;
-  seed: number;
-  /** Game time in ms, advanced only by "tick" actions. */
+  presetId: string;
+  matchSeed: number;
+  /** Game time in ms; advanced only by "tick" actions, so pause freezes everything. */
   timeMs: number;
   status: 'running' | 'finished';
   winnerId: string | null;
+  /** Minigame ids available on this map (requires(map) passed). */
+  pool: string[];
   players: PlayerState[];
-  /** Shared game RNG state (minigame/card rolls will draw from it). */
-  rng: RngState;
 }
 
 export interface PlayerSetup {
@@ -53,29 +83,39 @@ export interface PlayerSetup {
   botLevel?: BotLevel;
 }
 
-/** R2 starting point: easy 12 s, medium 8 s, hard 4 s. Tune in playtest. */
+/** R2: cooldown after a failed attempt, by effective difficulty. Tune in playtest. */
 export const COOLDOWN_MS: Readonly<Record<Difficulty, number>> = {
   easy: 12_000,
   medium: 8_000,
   hard: 4_000,
 };
-
+export const INTRO_MS = 3000;
+export const RETRY_INTRO_MS = 1500;
+export const RESULT_BANNER_MS = 1200;
 export const MAX_PLAYERS = 4;
 
-export function createInitialState(map: MapGraph, players: PlayerSetup[], seed: number): GameState {
+export function createInitialState(
+  map: MapGraph,
+  players: PlayerSetup[],
+  matchSeed: number,
+  pool: string[],
+): GameState {
   if (players.length < 1 || players.length > MAX_PLAYERS) {
     throw new RangeError(`need 1-${MAX_PLAYERS} players, got ${players.length}`);
   }
-  const ids = new Set(players.map((p) => p.id));
-  if (ids.size !== players.length) throw new Error('duplicate player ids');
+  if (new Set(players.map((p) => p.id)).size !== players.length) throw new Error('duplicate player ids');
+  if (pool.length === 0) throw new Error('empty minigame pool');
 
-  const start = map.data.startNodeId;
+  const start = map.startId;
+  const total = remainingWinsFor(map, start, null, 0);
   return {
     mapId: map.data.id,
-    seed,
+    presetId: map.presetId,
+    matchSeed: matchSeed >>> 0,
     timeMs: 0,
     status: 'running',
     winnerId: null,
+    pool: pool.slice(),
     players: players.map((p, i) => {
       const ps: PlayerState = {
         id: p.id,
@@ -84,16 +124,66 @@ export function createInitialState(map: MapGraph, players: PlayerSetup[], seed: 
         colorIndex: i,
         nodeId: start,
         path: [start],
-        phase: 'ready', // the start region counts as cleared
+        targetId: null,
+        winsAtTarget: 0,
+        phase: 'idle',
         cooldownUntilMs: 0,
+        nextMinigameId: null,
+        retry: false,
+        lastMinigameId: null,
+        attempts: {},
+        attempt: null,
+        pickRng: createStream(matchSeed, p.id, 'minigamePick').getState(),
+        remainingWins: total,
+        remainingWinsSinceMs: 0,
       };
       if (p.botLevel) ps.botLevel = p.botLevel;
       return ps;
     }),
-    rng: new Rng(seed).getState(),
   };
 }
 
-export function getPlayer(state: GameState, playerId: string): PlayerState | undefined {
+/**
+ * remainingWins (gdd.md, DR-07), W = winsRequired:
+ * - no target or w = 0: W × playDist(n)
+ * - with target:        min(W × playDist(t) + (W − w), W × playDist(n))
+ */
+export function remainingWinsFor(map: MapGraph, nodeId: string, targetId: string | null, winsAtTarget: number): number {
+  const W = map.winsRequired;
+  if (nodeId === map.finishId) return 0;
+  const fromNode = W * (map.playDist.get(nodeId) ?? 0);
+  if (!targetId || winsAtTarget === 0) return fromNode;
+  const fromTarget = W * (map.playDist.get(targetId) ?? 0) + (W - winsAtTarget);
+  return Math.min(fromTarget, fromNode);
+}
+
+/** HUD "total" = remainingWins at the start (Indonesia: 8). */
+export function totalWins(map: MapGraph): number {
+  return remainingWinsFor(map, map.startId, null, 0);
+}
+
+export function getPlayer(state: Readonly<GameState>, playerId: string): PlayerState | undefined {
   return state.players.find((p) => p.id === playerId);
+}
+
+export function cooldownRemainingMs(state: Readonly<GameState>, p: PlayerState): number {
+  return Math.max(0, p.cooldownUntilMs - state.timeMs);
+}
+
+/**
+ * Ranking (gdd.md): winner first; then remainingWins ascending; ties: whoever reached
+ * their current value earlier; then seat order.
+ */
+export function ranking(state: Readonly<GameState>): PlayerState[] {
+  return state.players
+    .map((p, seat) => ({ p, seat }))
+    .sort((a, b) => {
+      const pa = a.p.place ?? Infinity;
+      const pb = b.p.place ?? Infinity;
+      if (pa !== pb) return pa - pb;
+      if (a.p.remainingWins !== b.p.remainingWins) return a.p.remainingWins - b.p.remainingWins;
+      if (a.p.remainingWinsSinceMs !== b.p.remainingWinsSinceMs) return a.p.remainingWinsSinceMs - b.p.remainingWinsSinceMs;
+      return a.seat - b.seat;
+    })
+    .map((x) => x.p);
 }

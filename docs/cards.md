@@ -31,7 +31,7 @@ Kolom: **Base** = termasuk 8 kartu base (5 boost, 3 sabotase; K3). **Target**: `
 |---|---|---|---|---|---|---|---|
 | `jam_pasir` | Jam Pasir | common | ✓ | self | next_minigame | Waktu +5 s | 2 |
 | `santai_dulu` | Santai Dulu | rare | ✓ | self | next_minigame | Difficulty −1 tingkat (hard→medium, medium→easy). Ingat: reward kartu & cooldown ikut difficulty efektif | 1 |
-| `nyawa_cadangan` | Nyawa Cadangan | common | ✓ | self | next_fail | Bila gagal di minigame berikutnya: tanpa cooldown, langsung ulang | 1 |
+| `nyawa_cadangan` | Nyawa Cadangan | common | ✓ | self | next_fail | Bila gagal di minigame berikutnya: tanpa cooldown; tombol Mulai langsung aktif (ulang tetap butuh tekan Mulai, DR-05) | 1 |
 | `teropong` | Teropong | common | ✓ | self | next_minigame | Aktifkan `hint` (bantuan khusus tiap minigame, lihat [minigames.md](minigames.md)) | 1 |
 | `payung_tameng` | Payung Tameng | rare | ✓ | self | next_sabotage | Menangkal 1 sabotase berikutnya yang mengarah ke kamu (kartu sabotase hangus) | 1 (defensif: maks 1 kartu defensif aktif) |
 | `zona_lebar` | Zona Lebar | common | | self | next_minigame | `tolerance` ×1,3 (zona/hitbox lebih besar) | 1 |
@@ -39,7 +39,7 @@ Kolom: **Base** = termasuk 8 kartu base (5 boost, 3 sabotase; K3). **Target**: `
 | `oleh_oleh` | Oleh-oleh | common | | self | next_reward | Kemenangan berikutnya: pilih +1 kartu (maks 5 dari 5) | 1 |
 | `ojek_kilat` | Ojek Kilat | rare | | self | next_minigame | Bila menang di minigame berikutnya, dihitung 2 win | 1 |
 | `cermin_balik` | Cermin Balik | epic | | self | next_sabotage | Memantulkan 1 sabotase berikutnya ke pengirimnya (kena batas sabotase pengirim; bila pengirim penuh → hanya tertangkal) | 1 (defensif) |
-| `tiket_pesawat` | Tiket Pesawat | epic | | self | instant | Langsung masuk ke region target yang sedang dipilih tanpa main minigame (pengecualian "no skipping" R6.1). Tidak dapat kartu. **Tidak bisa** dipakai bila target punya edge ke finish (region terakhir sebelum finish), karena finish tanpa minigame (D-004) membuatnya jadi menang instan. PM/owner to confirm (D-009/C-2) | — |
+| `tiket_pesawat` | Tiket Pesawat | epic | | self | instant | Langsung masuk ke region target yang sedang dipilih tanpa main minigame (pengecualian "no skipping" R6.1). Tidak dapat kartu. **Tidak bisa** dipakai bila target punya edge ke finish (region terakhir sebelum finish), karena finish tanpa minigame (D-004) membuatnya jadi menang instan (diputuskan PM, D-009/C-2) | — |
 
 ### Sabotase (9)
 
@@ -61,7 +61,7 @@ Rekap rarity: common 10, rare 7, epic 3.
 
 ### Copet: aturan lengkap
 1. **Kapan:** kapan saja kamu di race view (aturan umum). Boleh mengincar target yang sedang main minigame; minigame target tidak terganggu (hand memang tidak dipakai saat minigame).
-2. **Kartu yang dicuri:** 1 kartu acak seragam dari hand target (RNG kartu seeded milik pencuri). Hanya kartu di hand; efek pending target tidak tersentuh.
+2. **Kartu yang dicuri:** 1 kartu acak seragam dari hand target (stream `copet` milik pencuri; pada pantulan Cermin Balik: stream `copet` milik pemilik Cermin). Hanya kartu di hand; efek pending target tidak tersentuh.
 3. **Hand target kosong:** target tidak bisa dipilih di picker (label "Hand kosong"). Bila semua lawan kosong, Copet tidak bisa dimainkan (redup, alasan di detail kartu). Kartu tidak pernah terbuang sia-sia.
 4. **Hand pencuri penuh:** tidak mungkin meluap. Copet keluar dari hand dulu (ke zona `limbo`) sebelum mencuri, jadi hand pencuri ≤ 4 lalu jadi ≤ 5.
 5. **Payung Tameng target:** menangkal Copet; Copet dan Payung Tameng sama-sama habis, tidak ada kartu berpindah.
@@ -80,7 +80,7 @@ Penawaran 5 kartu dibuat begini:
 1. Untuk tiap slot: undi rarity dengan bobot tier pemain (tabel di bawah), lalu pilih kartu acak seragam di rarity itu.
 2. Tidak boleh ada `id` kembar dalam satu penawaran (undi ulang slot itu).
 3. Penawaran selalu berisi ≥ 1 boost dan ≥ 1 sabotase (slot terakhir dipaksa bila perlu).
-4. RNG kartu memakai generator seeded sendiri (`hash(matchSeed, playerId, 'cards')`), terpisah dari RNG minigame.
+4. RNG kartu memakai stream `cards` milik pemain (daftar stream: [minigames.md §1.2.1](minigames.md#121-stream-rng-dr-04-satu-satunya-daftar)).
 
 **Tier comeback** dihitung saat penawaran dibuat: `gap = remainingWins(pemain) − remainingWins(pemimpin)` (definisi `remainingWins` di [GDD](gdd.md#aturan-menangkalah)).
 
@@ -148,7 +148,6 @@ Nama dan deskripsi lewat string key (`card.jam_pasir.name`) supaya bisa dilokalk
 
 ## Keputusan (CP2)
 - Diputuskan owner: batas 2 sabotase pending (Q2), Copet ditambahkan sebagai pengecualian R3 (Q3), layar kartu 15 s (Q4).
-- Diputuskan PM: nama 8 kartu base (Jam Pasir, Santai Dulu, Nyawa Cadangan, Teropong, Payung Tameng; Jam Rusak, Badai, Kabut Asap); difficulty efektif menentukan N kartu.
+- Diputuskan PM: nama 8 kartu base (Jam Pasir, Santai Dulu, Nyawa Cadangan, Teropong, Payung Tameng; Jam Rusak, Badai, Kabut Asap); difficulty efektif menentukan N kartu; Tiket Pesawat dilarang untuk region yang punya edge ke finish (C-2/D-009); tidak ada penawaran kartu setelah win penentu kemenangan (C-3).
 
-## Open questions (PM/owner to confirm)
-1. **Tiket Pesawat di region terakhir** (D-009/C-2 di [GDD](gdd.md#open-questions)): karena finish tanpa minigame, aturan lama "tidak untuk finish" tidak lagi bermakna. Opsi: (a) dilarang untuk region yang punya edge ke finish [rekomendasi], (b) boleh.
+Sisa temuan QA untuk kartu (DR-23…DR-33, DR-40, DR-47) dikerjakan sebelum CP4.
