@@ -89,12 +89,13 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 - 5 kartu terbuka satu per satu (stagger 0,08 s, flip). Tap = tandai (naik + centang), tap lagi = batal. Penghitung "1/2".
 - Tombol **Ambil** aktif hanya bila tepat N terpilih. Tidak ada skip (pemain selalu ambil N).
 - Bila hand + N > 5 → langsung push **Buang Kartu**.
-- Batas waktu 15 s (Q4); habis = sistem memilih otomatis N kartu rarity tertinggi (game real-time, bot tidak menunggu). Bar waktu tipis di atas.
+- Batas waktu 15 s (Q4); habis = sistem memilih otomatis: kartu yang sudah ditandai tetap, sisanya rarity tertinggi, seri → slot paling kiri (DR-25, [cards.md §3.4](cards.md#34-layar-pilih-dan-layar-buang-timer-15-s-dr-25)). Bar waktu tipis di atas.
+- N = difficulty efektif ± Oleh-oleh/Pelit Hadiah, min 1 maks 5 ([cards.md §3.3](cards.md#33-jumlah-pilihan-n)).
 
 ## 6. Buang Kartu (K1.1)
-- Menampilkan semua kartu (hand lama + baru, maks 8), kartu baru berlabel "BARU".
+- Menampilkan semua kartu (hand lama + baru, maks 9: hand 5 + hard 3 + Oleh-oleh 1), kartu baru berlabel "BARU". Di mobile 9 kartu dibagi 2 baris.
 - Judul: "Hand penuh! Buang 2 kartu". Tap = tandai buang (kartu miring + ikon tong sampah). Tombol **Buang** aktif bila sisa = 5.
-- Batas waktu 15 s; habis = buang otomatis kartu common tertua.
+- Batas waktu 15 s; habis = kartu yang sudah ditandai tetap dibuang, kekurangannya diisi rarity terendah dulu, seri → paling lama di hand, kartu BARU paling akhir (DR-25, [cards.md §3.4](cards.md#34-layar-pilih-dan-layar-buang-timer-15-s-dr-25)).
 
 ## 7. Target picker sabotase
 - Muncul setelah **Pakai** pada kartu sabotase bertarget `opponent`.
@@ -109,7 +110,7 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 
 ## 8. Minigame overlay
 - Dibuka dengan transisi zoom ke region target 0,4 s → layar minigame.
-- **Intro:** kalimat aturan besar di tengah, animasi ikon, 3-2-1. Badge difficulty + ikon modifier aktif (mis. ⚡ Kabut, ⏳ +5 s) di bawah kalimat agar pemain tahu kenapa terasa beda.
+- **Intro:** kalimat aturan besar di tengah, animasi ikon, 3-2-1. Badge difficulty + ikon modifier aktif (mis. ⚡ Kabut, ⏳ +5 s) di bawah kalimat agar pemain tahu kenapa terasa beda. Di Hindari Rintangan, `timeDelta` tidak mengubah durasi, jadi badge-nya "⏳ tempo −15%" (Jam Pasir) / "⏳ tempo +15%" (Jam Rusak), bukan "+5 s" ([cards.md §5](cards.md#5-pemetaan-boost-ke-minigame-yang-sudah-dibangun-cp4a)).
 - **Saat main:** timer bar penuh-lebar di atas (di dalam safe area), indikator progres syarat lulus di kiri atas ("2/3"), tombol pause di kanan atas (solo saja). Tidak ada HUD race lain.
 - 2D: overlay HTML penuh layar dengan latar diorama di-blur. 3D: scene sendiri.
 - **Banner hasil** 1,2 s → BERHASIL → Penawaran Kartu; GAGAL → kembali ke Race dengan cooldown berjalan (Nyawa Cadangan: tanpa cooldown, tombol Mulai langsung aktif; tetap harus ditekan).
@@ -133,4 +134,4 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 2. PM: mobile portrait-first, landscape didukung; ikon ⚡ sabotase pending lawan terlihat semua pemain; layar kartu dilewati setelah win penentu kemenangan (C-3).
 3. PM (CP3a): ganti target boleh saat cooldown, cooldown tetap jalan, ulang lewat Mulai (DR-05); input dikunci sejak `playerFinished` (DR-06).
 
-Tidak ada open question tersisa. Temuan QA lain untuk UI (DR-12, DR-13, DR-25, DR-27, DR-33, DR-46, DR-48) dikerjakan di CP3b/CP4.
+Tidak ada open question tersisa. CP4a: DR-25 dan DR-48 dikerjakan (lihat [cards.md](cards.md)); DR-27 dan DR-33 menunggu CP4b. Temuan lain untuk UI (DR-12, DR-13, DR-46) dikerjakan di CP3b/CP6.

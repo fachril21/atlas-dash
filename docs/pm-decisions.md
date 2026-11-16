@@ -20,3 +20,10 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | DR-09 dead wait | Option B. Pillar 2 is reworded so the race view stays interactive during cooldown. Starting cooldowns change to **8/6/4 s** (easy/medium/hard); the order stays inverse, so R2 still holds. The engineer updates `COOLDOWN_MS` and its tests; gdd.md and map-indonesia §5 follow. |
 | Pick-result visibility | The rolled minigame stays hidden until Mulai is pressed, so switching target can't be used to re-roll. Accepted. |
 | Simon length | `targetLength` is 4/5/6 (easy/medium/hard) so a hard round fits in 30 s. Accepted. |
+
+## CP4a decisions (PM, 2026-11-16)
+
+| Topic | Decision |
+|---|---|
+| Defensive cards in CP4a | Option A. Payung Tameng and Cermin Balik get `phase: 'b'` and are left out of the CP4a offer pool, which leaves 9 boost cards. They stay defined as data. |
+| Ojek Kilat at FINAL, Zona Lebar on Simon hard | Kept as designed. Flagged for playtest. |

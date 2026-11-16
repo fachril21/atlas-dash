@@ -95,7 +95,8 @@ Sumber kebenaran: [checkpoints.md](checkpoints.md). (Milestone lama M1–M3 diha
 |---|---|---|
 | CP3a | Peta Indonesia, aturan gerak (target + 2 win), cooldown/ulang, framework minigame + Tap Tepat Waktu, stream RNG | Race pertama di peta asli dengan 1 minigame |
 | CP3b | Sisa temuan QA should-fix; Simon + Hindari Rintangan (3D) | Framework minigame 2D + 3D terbukti |
-| CP4 | 20 kartu, hand/buang, target sabotase, comeback | Loop kartu lengkap |
+| CP4a | 20 kartu sebagai data + interpreter, penawaran pilih-N-dari-5 boost-only, hand 5 + layar buang, timer 15 s, hanya boost aktif | Loop kartu boost lengkap |
+| CP4b | Sabotase, target picker, batas 2, Copet, Payung/Cermin, bobot comeback | Loop kartu lengkap |
 | CP5 | Bot 3 level, sisa minigame | Match penuh solo vs bot |
 | CP6 | Polish, cek mobile, playtest (durasi median ≈ 10–13 menit), build MVP | MVP siap dimainkan |
 
@@ -141,6 +142,7 @@ Semua keputusan CP2–CP3a tercatat di [Decisions](#decisions) dan [pm-decisions
 - (b) Copet terasa menyebalkan bila dipakai berkali-kali oleh bot: pantau di playtest; tuas tuning = rarity (sekarang rare) dan perilaku bot.
 
 ## Change log
+**0.3.2 (2026-11-16):** CP4a: cards.md v0.3 (DR-16, DR-23, DR-25, DR-26, DR-30, DR-31, DR-40, DR-48; penawaran boost-only; CP4 dipecah CP4a/CP4b).
 **0.1 (2026-11-16):** draft pertama MVP (GDD + 5 dokumen fitur).
 **0.2 (2026-11-16):** CP2: keputusan owner/PM dicatat (D-001, D-003–D-008), finish tanpa minigame, kartu Copet menggantikan Sinyal Hilang, konflik C-1/C-2/C-3 dicatat.
 **0.3.1 (2026-11-16):** CP3b: Open questions memuat DR-09 (3 opsi, PM to confirm; belum diterapkan); spec Simon + Hindari Rintangan dan aturan undian pool 3 di minigames.md v0.4.
