@@ -43,7 +43,7 @@ Splash/Loading → Menu Utama → Setup Bot → Race (loop) → Layar Hasil → 
    1. Pilih region tetangga lewat edge keluar sebagai target (graph satu arah/DAG, R6.1: hanya maju, tidak bisa mundur).
    2. Tekan **Mulai** → intro → minigame. Minigame diundi saat target dipilih dan setelah tiap win (tidak sama dengan yang terakhir); setelah gagal, minigame sama dengan seed baru dan intro 1,5 s (DR-02, [minigames.md §1.3](minigames.md#13-pemilihan-minigame-m2-dan-percobaan-ulang-dr-02)).
    3. **Menang:** `winsAtTarget + 1`, layar kartu (pilih N dari 5, K1; batas 15 s, Q4) → buang ke 5 kalau perlu (K1.1). Setelah **2 win** (Q1), pion pindah ke target (animasi 2 s).
-   4. **Kalah:** cooldown sesuai difficulty efektif (R2: easy 12 s, medium 8 s, hard 4 s). Cooldown milik pemain: boleh ganti target selama cooldown, tapi sisa cooldown tetap berjalan; win parsial di target lama hangus. Setelah cooldown habis, ulang **harus** lewat tombol Mulai (DR-05).
+   4. **Kalah:** cooldown sesuai difficulty efektif (R2: easy 8 s, medium 6 s, hard 4 s; CP3b, DR-09 opsi B). Cooldown milik pemain: boleh ganti target selama cooldown, tapi sisa cooldown tetap berjalan; win parsial di target lama hangus. Setelah cooldown habis, ulang **harus** lewat tombol Mulai (DR-05).
    5. **Finish:** region finish (Merauke) **tidak punya minigame**. Win ke-2 di region final (region dengan edge ke finish) = menang (lihat aturan di bawah).
 4. **Layar Hasil:** muncul setelah event `playerFinished`. Urutan posisi lain berdasarkan `remainingWins`.
 
@@ -134,7 +134,7 @@ Semua keputusan CP2–CP3a tercatat di [Decisions](#decisions) dan [pm-decisions
 | B. A + rapatkan selisih cooldown | Opsi A, dan ubah titik awal cooldown jadi **8 / 6 / 4 s** (easy/medium/hard) | Ya (8 > 6 > 4, tetap berbanding terbalik) | Menyentuh angka R2 "starting point" (requirements), `COOLDOWN_MS` di kode dan test, dan estimasi durasi map-indonesia §5 (match sedikit lebih singkat bila ada gagal). Tunggu terpanjang 8 s |
 | C. A + latihan saat cooldown | Opsi A, dan saat cooldown pemain boleh memainkan **ronde latihan** minigame yang sama tanpa hadiah dan tanpa efek (Mulai tetap menunggu cooldown) | Ya | Fitur baru (UI + minigame jalan dua kali), terlalu besar untuk CP3b/CP4; kandidat CP6 atau pasca-MVP |
 
-**Rekomendasi: B.** Opsi A saja jujur tapi tidak mengurangi rasa menunggu 12 s di easy yang sering terjadi di CP3b; B memotong 4 s tunggu di easy tanpa melanggar R2, dan dari CP4 kartu (Kopi Tubruk, sabotase, Tiket) mengisi waktu itu. C disimpan sebagai ide. Tidak diterapkan sebelum PM konfirmasi.
+**Rekomendasi: B.** Opsi A saja jujur tapi tidak mengurangi rasa menunggu 12 s di easy yang sering terjadi di CP3b; B memotong 4 s tunggu di easy tanpa melanggar R2, dan dari CP4 kartu (Kopi Tubruk, sabotase, Tiket) mengisi waktu itu. C disimpan sebagai ide. **Diputuskan PM (CP3b): opsi B diterapkan, cooldown 8/6/4 s.**
 
 ### Risiko
 - (a) Minigame "aturan 3 detik" gagal dipahami: cek di playtest pertama (target 8/10 tester lulus percobaan pertama di easy).

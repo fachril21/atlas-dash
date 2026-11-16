@@ -85,8 +85,8 @@ export interface PlayerSetup {
 
 /** R2: cooldown after a failed attempt, by effective difficulty. Tune in playtest. */
 export const COOLDOWN_MS: Readonly<Record<Difficulty, number>> = {
-  easy: 12_000,
-  medium: 8_000,
+  easy: 8_000,
+  medium: 6_000,
   hard: 4_000,
 };
 export const INTRO_MS = 3000;

@@ -1,14 +1,18 @@
 /** Registry of the pure minigame halves, and minigame selection rules (minigames.md §1.3). */
 import type { MapData } from '../map';
 import { Rng, type RngState } from '../rng';
+import { dodgeRunnerLogic } from './dodgeRunner';
+import { simonLogic } from './simon';
 import { tapTimingLogic } from './tapTiming';
 import type { MinigameLogic } from './types';
 
 export * from './types';
 export * from './tapTiming';
+export * from './simon';
+export * from './dodgeRunner';
 
-/** CP3a pool: Tap Tepat Waktu only. */
-export const MINIGAME_LOGIC: readonly MinigameLogic<any, any, any>[] = [tapTimingLogic];
+/** Registry: fixed order, as in minigames.md §9 (§1.3 step 1). Never reorder; the pick depends on it. */
+export const MINIGAME_LOGIC: readonly MinigameLogic<any, any, any>[] = [tapTimingLogic, simonLogic, dodgeRunnerLogic];
 
 export function getMinigameLogic(id: string): MinigameLogic<any, any, any> {
   const mg = MINIGAME_LOGIC.find((m) => m.id === id);
@@ -22,13 +26,16 @@ export function minigamePool(map: MapData): string[] {
 }
 
 /**
- * One draw from the player's "minigamePick" stream. Excludes the last played minigame
- * unless the pool has a single entry. Returns the new stream state.
+ * Draw per minigames.md §1.3: candidates = pool without `lastId` (the last minigame the player
+ * played, failed attempts included); if that leaves nothing, the whole pool. Always exactly one
+ * draw from the player's "minigamePick" stream, even with a single candidate.
+ * `pool` must keep registry order (minigamePool does). Returns the new stream state.
  */
 export function pickMinigame(pool: readonly string[], rngState: RngState, lastId: string | null): { id: string; rng: RngState } {
   if (pool.length === 0) throw new Error('empty minigame pool');
   const rng = Rng.fromState(rngState);
-  const candidates = pool.length > 1 && lastId !== null ? pool.filter((id) => id !== lastId) : pool;
-  const id = rng.pick(candidates.length > 0 ? candidates : pool);
+  const filtered = pool.filter((id) => id !== lastId);
+  const candidates = filtered.length > 0 ? filtered : pool;
+  const id = candidates[rng.int(0, candidates.length - 1)] as string;
   return { id, rng: rng.getState() };
 }

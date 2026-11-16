@@ -1,6 +1,12 @@
 /** UI strings by key (ui-flow §1: all text via keys; Indonesian first, English later). */
 const ID: Record<string, string> = {
   'mg.tap_timing.intro': 'Tap saat jarum di zona hijau!',
+  'mg.simon.intro': 'Ulangi urutan warnanya!',
+  'mg.simon.watch': 'Perhatikan...',
+  'mg.simon.yourTurn': 'Giliranmu!',
+  'mg.simon.ready': 'Siap...',
+  'mg.simon.replay': 'Ulang',
+  'mg.dodge_runner.intro': 'Geser kiri-kanan, hindari rintangan!',
   'mg.result.pass': 'BERHASIL!',
   'mg.result.fail': 'GAGAL',
   'mg.paused': 'Jeda',

@@ -45,8 +45,8 @@ describe('Indonesia map (map_indonesia_valid)', () => {
     expect(map.finishId).toBe('merauke');
   });
 
-  it('pool contains tap_timing', () => {
-    expect(minigamePool(map.data)).toEqual(['tap_timing']);
+  it('pool holds the three CP3b minigames in registry order', () => {
+    expect(minigamePool(map.data)).toEqual(['tap_timing', 'simon', 'dodge_runner']);
   });
 });
 

@@ -16,6 +16,7 @@ export class MinigameHost {
   private phaseT = 0;
   private introMs = 0;
   private instance: MinigameInstance | null = null;
+  private is3d = false;
   private result: MinigameResult | null = null;
   private onResult: ((r: MinigameResult) => void) | null = null;
   private readonly overlay: HTMLElement;
@@ -42,6 +43,11 @@ export class MinigameHost {
     return this.phase !== 'closed';
   }
 
+  /** True while a 3D minigame owns the screen (the race scene need not render). */
+  get coversRace(): boolean {
+    return this.phase !== 'closed' && this.is3d;
+  }
+
   get currentPhase(): Phase {
     return this.phase;
   }
@@ -52,6 +58,7 @@ export class MinigameHost {
     const level = def.generateLevel(ctx);
     for (const w of (level as { warnings?: string[] }).warnings ?? []) console.warn(w);
     this.onResult = onResult;
+    this.is3d = def.render === '3d';
     this.result = null;
     this.introMs = attempt.introMs;
     this.phase = 'intro';
@@ -63,7 +70,7 @@ export class MinigameHost {
     this.introEl.hidden = false;
     this.introEl.innerHTML = `
       <p class="mg-rule">${t(def.introKey)}</p>
-      <div class="mg-icon" aria-hidden="true"><span class="mg-icon-zone"></span><span class="mg-icon-needle"></span></div>
+      ${def.introIconHtml}
       <p class="mg-meta"><span class="badge d-${ctx.difficulty}">${t(`difficulty.${ctx.difficulty}`)}</span></p>
       <p class="mg-count" data-testid="mg-countdown"></p>`;
     this.instance = def.create(this.playEl, ctx, level);
@@ -118,6 +125,7 @@ export class MinigameHost {
     this.instance?.destroy();
     this.instance = null;
     this.phase = 'closed';
+    this.is3d = false;
     this.overlay.hidden = true;
     this.overlay.classList.remove('paused');
     delete this.overlay.dataset.phase;

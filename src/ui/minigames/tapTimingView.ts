@@ -198,5 +198,6 @@ class TapTimingInstance implements MinigameInstance {
 
 export const tapTimingDefinition: MinigameDefinition<TapTimingLevel> = {
   ...tapTimingLogic,
+  introIconHtml: '<div class="mg-icon" aria-hidden="true"><span class="mg-icon-zone"></span><span class="mg-icon-needle"></span></div>',
   create: (container, ctx, level) => new TapTimingInstance(container, ctx, level),
 };

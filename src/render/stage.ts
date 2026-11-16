@@ -22,6 +22,9 @@ export class Stage {
   /** DOM labels (region names) positioned in 3D; sits above the canvas. */
   readonly labelRenderer = new CSS2DRenderer();
 
+  /** False while a full-screen 3D minigame covers the race view (saves GPU on phones). */
+  renderEnabled = true;
+
   private readonly timer = new THREE.Timer();
   private readonly frameCallbacks: FrameCallback[] = [];
   private fitBox = new THREE.Box3(new THREE.Vector3(-5, 0, -5), new THREE.Vector3(5, 1, 5));
@@ -93,6 +96,7 @@ export class Stage {
       this.timer.update(); // no timestamp argument: avoids negative delta after tab hide (r186/r187)
       const dt = Math.min(Math.max(this.timer.getDelta(), 0), 0.1);
       for (const cb of this.frameCallbacks) cb(dt);
+      if (!this.renderEnabled) return;
       this.renderer.render(this.scene, this.camera);
       this.labelRenderer.render(this.scene, this.camera);
     });

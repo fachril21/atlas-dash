@@ -245,6 +245,7 @@ async function boot(): Promise<void> {
     }
     if (steps === MAX_STEPS_PER_FRAME) accumulatorMs = 0;
     host.advance(gameDtMs);
+    stage.renderEnabled = !host.coversRace;
     board.update(dt);
     pawns.update(dt);
     hud.render(session.state);

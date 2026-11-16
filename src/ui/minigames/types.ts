@@ -20,5 +20,7 @@ export interface MinigameInstance {
 }
 
 export interface MinigameDefinition<Level = any> extends MinigameLogic<Level, any, any> {
+  /** HTML of the intro animation icon (decorative). */
+  introIconHtml: string;
   create(container: HTMLElement, ctx: MinigameContext, level: Level): MinigameInstance;
 }

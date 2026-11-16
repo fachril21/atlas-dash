@@ -7,6 +7,9 @@ import {
   box, byId, conquer, consoleErrors, dispatch, exportLog, force, forceWin, getState, isTouch, me, open, overlaps, press, setTimeScale, waitIdle,
 } from './helpers';
 
+/** With 3 minigames in the pool the first draw depends on the seed; this seed draws Tap Tepat Waktu first. */
+const TAP_FIRST_SEED = 1337;
+
 test.describe('boot', () => {
   test('smoke_boot: no console errors, canvas + 10 region labels, no horizontal scroll', async ({ page }) => {
     await open(page);
@@ -135,7 +138,7 @@ test.describe('pause', () => {
 
 test.describe('input', () => {
   test('smoke_input: real tap/click on the play area counts exactly one action', async ({ page }) => {
-    await open(page);
+    await open(page, { seed: TAP_FIRST_SEED });
     await dispatch(page, { type: 'selectTarget', playerId: 'p1', targetId: 'medan' });
     await dispatch(page, { type: 'startAttempt', playerId: 'p1' });
     await expect(byId(page, 'mg-play-area')).toBeVisible();
@@ -155,7 +158,7 @@ test.describe('input', () => {
 
   test('desktop: Space works as tap, digit keys choose a target', async ({ page }) => {
     test.skip(isTouch(), 'keyboard is a desktop path');
-    await open(page);
+    await open(page, { seed: TAP_FIRST_SEED });
     await page.keyboard.press('Digit1');
     await expect.poll(async () => (await me(page)).targetId).not.toBeNull();
     await page.keyboard.press('Enter');

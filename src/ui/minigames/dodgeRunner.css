@@ -1,0 +1,41 @@
+.mg-dodge {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+.dr-stage { position: absolute; inset: 0; }
+.dodge-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.dr-top {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  pointer-events: none;
+  padding: calc(10px + var(--safe-top)) calc(16px + var(--safe-right)) 0 calc(16px + var(--safe-left));
+}
+.dr-timer { height: 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.6); overflow: hidden; }
+.dr-timer-fill { height: 100%; background: #2ec4b6; transform-origin: left center; }
+.dr-timer.low .dr-timer-fill { background: #ff6b6b; animation: dr-pulse 0.5s ease-in-out infinite alternate; }
+.dr-stats { display: flex; justify-content: space-between; margin-top: 8px; font-size: 22px; font-weight: 800; color: #23324a; text-shadow: 0 1px 0 #fff8; }
+.dr-lives { color: #ff4d6d; letter-spacing: 2px; }
+.mg-dodge.fx-hit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 6px #ff4d6d;
+  animation: dr-flash 0.25s ease-out forwards;
+}
+.mg-dodge.reduced-flash.fx-hit::after { animation: none; opacity: 0.8; }
+@keyframes dr-flash { from { opacity: 1; background: #ff4d6d33; } to { opacity: 0; } }
+@keyframes dr-pulse { from { opacity: 1; } to { opacity: 0.55; } }
+/* The 3D canvas fills the overlay, so skip the expensive backdrop blur. */
+.mg-overlay[data-minigame='dodge_runner'] { backdrop-filter: none; -webkit-backdrop-filter: none; background: #bfe9ff; }
+.icon-dodge { position: relative; display: block; width: 150px; height: 60px; border-radius: 12px; background: #fff; overflow: hidden; }
+.icon-dodge .ob { position: absolute; width: 26px; height: 26px; top: -30px; left: 62px; border-radius: 6px; background: #ff6b6b; animation: dr-icon-fall 1.4s linear infinite; }
+.icon-dodge .pawn { position: absolute; bottom: 6px; width: 24px; height: 28px; border-radius: 50%; background: #ff4d6d; animation: dr-icon-move 1.4s ease-in-out infinite; }
+@keyframes dr-icon-fall { to { top: 70px; } }
+@keyframes dr-icon-move { 0%, 25% { left: 62px; } 55%, 100% { left: 20px; } }

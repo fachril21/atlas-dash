@@ -50,10 +50,10 @@ Contoh dengan win parsial: di Jakarta, target Toraja, 1 win → min(2×1 + 1, 2�
 
 | Tipe | Difficulty (M2) | Cooldown gagal (R2) | Kartu per win (K1) | Nuansa visual |
 |---|---|---|---|---|
-| `pantai` | easy | 12 s | 1 | pasir, kelapa, air toska |
-| `sawah` | easy | 12 s | 1 | petak hijau bertingkat |
-| `kota` | medium | 8 s | 2 | gedung kotak warna-warni, jalan |
-| `hutan` | medium | 8 s | 2 | pohon bulat, savana, satwa |
+| `pantai` | easy | 8 s | 1 | pasir, kelapa, air toska |
+| `sawah` | easy | 8 s | 1 | petak hijau bertingkat |
+| `kota` | medium | 6 s | 2 | gedung kotak warna-warni, jalan |
+| `hutan` | medium | 6 s | 2 | pohon bulat, savana, satwa |
 | `gunung` | hard | 4 s | 3 | puncak bersalju/berkabut, tebing |
 | `laut` | hard | 4 s | 3 | pulau karst kecil di laut dalam |
 
