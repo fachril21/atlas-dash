@@ -87,9 +87,9 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 ## 5. Penawaran Kartu (pilih N dari 5, K1)
 - Muncul setelah banner BERHASIL. Judul: "Pilih 2 kartu" (N sesuai difficulty efektif ± kartu Oleh-oleh/Pelit Hadiah).
 - 5 kartu terbuka satu per satu (stagger 0,08 s, flip). Tap = tandai (naik + centang), tap lagi = batal. Penghitung "1/2".
-- Tombol **Ambil** aktif hanya bila tepat N terpilih. Tidak ada skip (pemain selalu ambil N) `[ASSUMPTION]`.
+- Tombol **Ambil** aktif hanya bila tepat N terpilih. Tidak ada skip (pemain selalu ambil N).
 - Bila hand + N > 5 → langsung push **Buang Kartu**.
-- Batas waktu 15 s; habis = sistem memilih otomatis N kartu rarity tertinggi (game real-time, bot tidak menunggu) `[ASSUMPTION]`. Bar waktu tipis di atas.
+- Batas waktu 15 s (Q4); habis = sistem memilih otomatis N kartu rarity tertinggi (game real-time, bot tidak menunggu). Bar waktu tipis di atas.
 
 ## 6. Buang Kartu (K1.1)
 - Menampilkan semua kartu (hand lama + baru, maks 8), kartu baru berlabel "BARU".
@@ -99,7 +99,8 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 ## 7. Target picker sabotase
 - Muncul setelah **Pakai** pada kartu sabotase bertarget `opponent`.
 - Daftar lawan (kartu besar per lawan, 1 kolom di mobile): warna + nama, posisi (#1–#4), "N win lagi", status (🎮/⏱/🗺), jumlah kartu di hand, slot sabotase pending (●●, maks 2).
-- Lawan dengan 2 sabotase pending: redup, label "Penuh", tidak bisa dipilih.
+- Lawan dengan 2 sabotase pending (Q2): redup, label "Penuh", tidak bisa dipilih. Pengecualian: **Copet** (instan, tidak memakai slot) tetap bisa ke lawan "Penuh", tapi tidak bisa ke lawan dengan hand kosong (label "Hand kosong").
+- Copet berhasil: kartu curian terbang dari pion lawan ke hand kamu + toast "Kamu mencopet Teropong dari Bot 2". Kamu dicopet: toast merah "Bot 1 mencopet Teropong darimu" + slot hand yang kosong berkedip.
 - Rekomendasi: badge "Terdepan" di lawan peringkat 1 (bantu pemain baru).
 - Tap lawan → konfirmasi instan (tanpa dialog kedua) → animasi kartu terbang ke pion lawan di diorama 0,5 s + toast "Jam Rusak → Bot 2". Batal = kembali ke detail kartu, kartu tetap di hand.
 - Hasil tertangkal/terpantul tampil sebagai toast: "Bot 2 punya Payung Tameng!" / "Dipantulkan ke kamu!".
@@ -121,7 +122,14 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 - Saat tab disembunyikan (`visibilitychange`) di mode solo: auto-pause.
 - Performa target: 60 fps desktop, ≥ 30 fps HP menengah; UI tetap responsif saat scene 3D berat.
 
+## 10. Finish
+- Region yang punya edge ke finish diberi label "FINAL" di diorama dan di panel target ("Menang 2× di sini = juara").
+- Setelah win ke-2 di region final: banner BERHASIL → (layar kartu dilewati: kartu tidak berguna lagi; PM/owner to confirm, C-3) → pion jalan otomatis ke Merauke 2 s → confetti + bendera → layar Hasil.
+- Bila bot mencapai finish: toast "Bot 2 sampai Merauke!" 1,5 s → layar Hasil (match berakhir untuk semua).
+
+## Keputusan (CP2)
+1. Owner: batas waktu 15 s untuk Penawaran Kartu & Buang Kartu dengan pilihan otomatis (Q4).
+2. PM: mobile portrait-first, landscape didukung; ikon ⚡ sabotase pending lawan terlihat semua pemain.
+
 ## Open questions (PM/owner to confirm)
-1. Orientasi mobile: (a) portrait-first, landscape didukung [rekomendasi], (b) landscape-only.
-2. Batas waktu 15 s untuk Penawaran Kartu & Buang Kartu dengan pilihan otomatis. Opsi: (a) 15 s [rekomendasi, game real-time], (b) tanpa batas waktu (bot tetap jalan).
-3. Ikon ⚡ sabotase pending lawan terlihat semua pemain. Opsi: (a) terlihat [rekomendasi, membantu memilih target], (b) tersembunyi.
+1. Lewati layar kartu setelah win terakhir di region final (karena pemain langsung menang). Opsi: (a) lewati [rekomendasi], (b) tetap tampil (tidak ada gunanya).

@@ -72,7 +72,8 @@ Aturan kontrak:
 ### 1.3 Pemilihan minigame (M2)
 - Diambil acak (seeded) dari pool yang `requires(map)` lolos.
 - Tidak boleh sama dengan minigame terakhir yang dimainkan pemain itu.
-- Difficulty = difficulty tipe region ([map-indonesia.md](map-indonesia.md#tipe-region)), lalu digeser kartu (clamp easy..hard).
+- Difficulty = difficulty tipe region ([map-indonesia.md](map-indonesia.md#2-tipe-region)), lalu digeser kartu (clamp easy..hard).
+- Region start dan finish tidak pernah memanggil minigame (D-004).
 
 ### 1.4 Feedback (game feel, dipakai semua minigame)
 
@@ -292,8 +293,8 @@ Setiap minigame mendefinisikan arti tiap modifier di tabelnya. Default bila tida
 | Cocokkan Kartu | 2D | 30 s | semua pasangan |
 | Tebak Lokasi | 2D | 24–27 s | jumlah jawaban benar |
 
-## Open questions (PM/owner to confirm)
-1. Intro diperpendek ke 1,5 s pada percobaan ulang minigame yang sama. Opsi: (a) ya [rekomendasi], (b) selalu 3 s.
-2. Tebak Lokasi berbasis pilihan ganda nama region. Opsi: (a) pilihan ganda [rekomendasi, aman di mobile], (b) tap di mini-map (lebih "geografi", sulit di layar kecil).
-3. Ketapel tanpa physics engine (skrip jatuh). Opsi: (a) skrip [rekomendasi, ringan], (b) cannon-es/rapier untuk efek tumbang realistis.
-4. Target pass rate untuk tuning: easy 80%, medium 60%, hard 40% pada pemain kasual percobaan pertama `[ASSUMPTION]`.
+## Keputusan (CP2, diputuskan PM)
+1. Intro diperpendek ke 1,5 s pada percobaan ulang minigame yang sama.
+2. Tebak Lokasi berbasis pilihan ganda nama region (bukan tap di mini-map). Places di region finish tetap boleh jadi soal.
+3. Ketapel tanpa physics engine (skrip jatuh).
+4. Target pass rate untuk tuning: easy 80%, medium 60%, hard 40% pada pemain kasual percobaan pertama.

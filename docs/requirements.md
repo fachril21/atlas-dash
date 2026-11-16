@@ -19,7 +19,7 @@ A virtual real-time race across a regional map (first map: Indonesia, Sabang →
 |----|-------|----------|
 | R1 | Win condition | First player to reach the final region wins. |
 | R2 | Losing a minigame | Cooldown, then retry. **Cooldown scales inversely with minigame difficulty**: easy minigame = long cooldown, hard minigame = short cooldown. |
-| R3 | Sabotage | Cards only. Effects apply to an opponent's next minigame (e.g. harder, less time). No interrupting a minigame in progress. |
+| R3 | Sabotage | Cards only. Effects apply to an opponent's next minigame (e.g. harder, less time). No interrupting a minigame in progress. **Exception (CP2, Q3):** one steal card "Copet" that takes a card from the target's hand. |
 | R4 | Content focus | General minigames (not education-focused). Visual theming follows the map. **Maps must be data-driven / map-agnostic**: Japan map planned after Indonesia. |
 | R5 | Match length | Set by route length (regions to finish). Presets Short ~10 min / Standard ~15 min / Long 20+ min. **MVP ships Standard only**; system supports all presets. |
 | R6 | Route structure | Branching map graph. MVP: ~9–10 region nodes, 2+ branch points, routes to finish ~5–6 regions, with trade-offs between routes. **Routing must be flexible**: players choose freely within movement rules (see R6.1). |
@@ -32,6 +32,9 @@ A virtual real-time race across a regional map (first map: Indonesia, Sabang →
 | B1 | Bot levels | Easy / Normal / Hard, chosen before the match. |
 | B2 | Bot behaviour | Bots choose routes and use cards like players. |
 | B3 | Bot count | Player chooses 1–3 bots. |
+| Q1 | Wins per region | A region needs **2 minigame wins** to be cleared (so Standard ≈ 15 min). |
+| Q2 | Sabotage cap | Max **2** pending sabotage cards on one target. |
+| Q4 | Card screen timer | Pick/discard screens have a **15 s** limit, then auto-pick. |
 | M2 | Minigame per region | Random from the pool; difficulty follows the **region type** (e.g. mountain = hard, beach = easy). |
 | R8 | Comeback | Trailing players get better cards. |
 | R9 | Card hand | Max 5 cards held. |

@@ -28,7 +28,7 @@
 
 ## 3. Palet
 
-Palet global (UI & karakter) + aksen per peta dari `map.theme.palette` ([map-indonesia.md](map-indonesia.md#format-data-peta-map-agnostic)).
+Palet global (UI & karakter) + aksen per peta dari `map.theme.palette` ([map-indonesia.md](map-indonesia.md#6-format-data-peta-map-agnostic)).
 
 | Peran | Warna | Catatan |
 |---|---|---|
@@ -65,6 +65,7 @@ Penamaan: `snake_case`, prefix kelompok (`tile_`, `lm_`, `prop_`, `char_`, `icon
 4. Ikon & ilustrasi tanpa teks dan tanpa logo/merek.
 5. **Provenance:** tiap aset dicatat di manifest (sumber: buatan sendiri / AI-generated / pack berlisensi, lisensi, tanggal). Wajib bila nanti rilis di platform yang menanyakan konten AI.
 
-## Open questions (PM/owner to confirm)
-1. Sumber aset 3D MVP: (a) buat sendiri di Blender dengan palette texturing [rekomendasi, konsisten], (b) pack low-poly berlisensi (CC0, mis. Kenney/Quaternius) + recolor ke palet, (c) generator AI 3D + cleanup. (b) tercepat untuk greybox M1.
-2. Tilt-shift blur di desktop: (a) ya, ringan [rekomendasi], (b) tidak sama sekali (lebih ringan).
+## Keputusan (CP2, diputuskan PM)
+1. Sumber aset 3D MVP: buat sendiri di Blender dengan palette texturing. Pack low-poly CC0 + recolor boleh untuk greybox M1.
+2. Tilt-shift blur ringan di desktop saja.
+3. Merauke (finish) tetap punya tile + landmark (`lm_musamus`) dan efek perayaan finish (confetti + bendera), walau tanpa minigame.
