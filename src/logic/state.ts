@@ -7,6 +7,7 @@
  * there before the pawn moves.
  */
 import type { Difficulty, MapGraph } from './map';
+import type { MinigameModifier } from './minigames/types';
 import { createStream, type RngState } from './rng';
 
 export type PlayerKind = 'human' | 'bot';
@@ -19,11 +20,46 @@ export type BotLevel = 'easy' | 'normal' | 'hard';
  */
 export type PlayerPhase = 'idle' | 'playing' | 'finished';
 
+/** One physical card. `seq` = handSeq (order of entering the hand; lower = older), 0 until then. */
+export interface CardInstance {
+  uid: string;
+  defId: string;
+  seq: number;
+}
+
+/** The pick screen (cards.md §3, ui-flow §5). Timer is game time, so pause freezes it. */
+export interface CardOffer {
+  cards: CardInstance[];
+  /** N: how many to take. */
+  pick: number;
+  /** Uids the player has marked so far (kept by the auto-pick). */
+  marked: string[];
+  expiresAtMs: number;
+}
+
+/** The discard screen (K1.1): the hand holds up to 9 cards until it is back to 5. */
+export interface DiscardState {
+  /** Cards that came from the latest pick ("BARU"). */
+  newUids: string[];
+  marked: string[];
+  expiresAtMs: number;
+}
+
 export interface Attempt {
   minigameId: string;
   targetId: string;
+  /** Difficulty of the region type, before cards. */
+  baseDifficulty: Difficulty;
+  /** Modifiers snapshotted from pending cards at Mulai (DR-48). */
+  modifiers: MinigameModifier[];
+  /** Pending cards consumed by this attempt (they stay in `pending` until it ends). */
+  cardUids: string[];
+  /** Conditional effects resolved at Mulai, applied by the result. */
+  onFail: { noCooldown: boolean; cooldownDeltaMs: number };
+  onWin: { pickDelta: number; winMultiplier: number };
   /** ctx.seed, from "minigameParams:<targetId>:<attemptIndex>". */
   seed: number;
+  /** Effective difficulty (after Santai Dulu etc.): drives cooldown and N. */
   difficulty: Difficulty;
   attemptIndex: number;
   /** 3000 for a freshly drawn minigame, 1500 for a retry after a fail (DR-02). */
@@ -56,6 +92,18 @@ export interface PlayerState {
   attempt: Attempt | null;
   /** "minigamePick" stream state. */
   pickRng: RngState;
+  /** "cards" stream state (offers). */
+  cardsRng: RngState;
+  /** Hand (max 5, up to 9 while the discard screen is open). */
+  hand: CardInstance[];
+  /** Next handSeq to hand out. */
+  nextHandSeq: number;
+  /** Played next_minigame cards waiting for (or inside) the next attempt. */
+  pending: CardInstance[];
+  /** Spent / discarded / unpicked cards. */
+  discarded: CardInstance[];
+  offer: CardOffer | null;
+  discard: DiscardState | null;
   /** remainingWins and when it last changed (ranking tie-break). */
   remainingWins: number;
   remainingWinsSinceMs: number;
@@ -71,6 +119,8 @@ export interface GameState {
   timeMs: number;
   status: 'running' | 'finished';
   winnerId: string | null;
+  /** Next card instance number (uids are "c<n>"). */
+  nextCardUid: number;
   /** Minigame ids available on this map (requires(map) passed). */
   pool: string[];
   players: PlayerState[];
@@ -113,6 +163,7 @@ export function createInitialState(
     presetId: map.presetId,
     matchSeed: matchSeed >>> 0,
     timeMs: 0,
+    nextCardUid: 1,
     status: 'running',
     winnerId: null,
     pool: pool.slice(),
@@ -134,6 +185,13 @@ export function createInitialState(
         attempts: {},
         attempt: null,
         pickRng: createStream(matchSeed, p.id, 'minigamePick').getState(),
+        cardsRng: createStream(matchSeed, p.id, 'cards').getState(),
+        hand: [],
+        nextHandSeq: 1,
+        pending: [],
+        discarded: [],
+        offer: null,
+        discard: null,
         remainingWins: total,
         remainingWinsSinceMs: 0,
       };

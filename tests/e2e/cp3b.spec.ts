@@ -41,7 +41,11 @@ const dodgeLevel = (a: Attempt): DodgeLevel => dodgeRunnerLogic.generateLevel(ct
 /** The first attempt of `target` after conquering `path`, replayed exactly like the e2e flow does. */
 function attemptFor(seed: number, path: Path, target: string): Attempt {
   let s: GameState = createInitialState(map, [{ id: 'p1', name: 'p1', kind: 'human' }], seed, pool);
-  const run = (a: Parameters<typeof applyAction>[2]) => { s = applyAction(map, s, a).state; };
+  const run = (a: Parameters<typeof applyAction>[2]) => {
+    s = applyAction(map, s, a).state;
+    // CP4a: a win opens the card offer; the browser flow settles it with the auto rules, so do the same here.
+    for (let i = 0; i < 4 && (s.players[0]?.offer || s.players[0]?.discard); i++) s = applyAction(map, s, { type: 'autoCards', playerId: 'p1' }).state;
+  };
   for (const r of path) {
     run({ type: 'selectTarget', playerId: 'p1', targetId: r });
     run({ type: 'startAttempt', playerId: 'p1' });

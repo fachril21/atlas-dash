@@ -30,6 +30,7 @@ import { PawnsView } from './render/pawns';
 import { NodePicker } from './render/picking';
 import { Stage } from './render/stage';
 import { installDebug } from './ui/debug';
+import { CardsUi } from './ui/cardsUi';
 import { Hud } from './ui/hud';
 import { MinigameHost } from './ui/minigameHost';
 import { PointerInput, type InputIntent } from './ui/pointerInput';
@@ -96,6 +97,7 @@ async function boot(): Promise<void> {
   let human!: HumanController;
   let pawns!: PawnsView;
   let hud!: Hud;
+  let cardsUi!: CardsUi;
   let accumulatorMs = 0;
   let timeScale = 1;
   let paused = false;
@@ -110,6 +112,7 @@ async function boot(): Promise<void> {
     host.close();
     pawns?.dispose();
     hud?.dispose();
+    cardsUi?.dispose();
     setPaused(false);
     matchSeed = newMatchSeed();
     if (DEBUG) console.info(`[atlas] matchSeed=${matchSeed}`);
@@ -138,6 +141,11 @@ async function boot(): Promise<void> {
       onQuit: () => newMatch(),
       onPlayAgain: () => newMatch(),
     });
+    cardsUi = new CardsUi(hudEl, map, HUMAN_ID, {
+      onPlay: (uid) => human.submit({ type: 'playCard', playerId: HUMAN_ID, cardUid: uid }),
+      onMark: (uid) => human.submit({ type: 'markCard', playerId: HUMAN_ID, cardUid: uid }),
+      onConfirm: () => human.submit({ type: 'confirmCards', playerId: HUMAN_ID }),
+    });
     accumulatorMs = 0;
     gameOverAgo = null;
     unsubscribe = session.subscribe(onSessionEvents);
@@ -164,13 +172,14 @@ async function boot(): Promise<void> {
     const p = me();
     board.setSelection(p ? selectableTargets(map, state, p) : [], p?.phase === 'idle' ? p.targetId : null);
     hud.render(state);
+    cardsUi.render(state);
   }
 
   function openMinigame(attempt: NonNullable<PlayerState['attempt']>): void {
     const ctx: MinigameContext = {
       seed: attempt.seed,
       difficulty: attempt.difficulty,
-      modifiers: [], // cards arrive in CP4
+      modifiers: attempt.modifiers.slice(), // snapshot from pending cards at Mulai (DR-48)
       map: map.data,
       regionId: attempt.targetId,
       inputMode: lastPointerType,
@@ -249,6 +258,7 @@ async function boot(): Promise<void> {
     board.update(dt);
     pawns.update(dt);
     hud.render(session.state);
+    cardsUi.render(session.state);
     if (gameOverAgo !== null) {
       gameOverAgo += dt;
       if (gameOverAgo >= RESULTS_DELAY_S && !pawns.animating) hud.showResults(session.state);
@@ -272,6 +282,7 @@ async function boot(): Promise<void> {
         return host.force(passed);
       },
       setPaused,
+      human: HUMAN_ID,
       extra: { renderer: stage.renderer, scene: stage.scene, stage },
     });
   }

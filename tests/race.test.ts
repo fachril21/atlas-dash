@@ -19,7 +19,7 @@ import {
   type GameState,
   type MapGraph,
 } from '../src/logic';
-import { indonesiaData } from './helpers';
+import { indonesiaData, settleCards } from './helpers';
 
 const map = loadMap(indonesiaData(), 'standard', MINIGAME_LOGIC);
 const pool = minigamePool(map.data);
@@ -41,7 +41,7 @@ function run(state: GameState, actions: GameAction[], m: MapGraph = map): { stat
     const r = applyAction(m, state, a);
     const rej = r.events.find((e) => e.type === 'actionRejected');
     if (rej) throw new Error(`rejected ${JSON.stringify(a)}: ${JSON.stringify(rej)}`);
-    state = r.state;
+    state = settleCards(m, r.state);
     events.push(...r.events);
   }
   return { state, events };

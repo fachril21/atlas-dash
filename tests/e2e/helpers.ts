@@ -75,6 +75,19 @@ export const byId = (page: Page, id: string): Locator => page.getByTestId(id);
 export async function waitIdle(page: Page): Promise<void> {
   await expect.poll(async () => (await me(page)).phase, { timeout: 30_000 }).not.toBe('playing');
   await expect(byId(page, 'mg-overlay')).toBeHidden();
+  await settleCards(page);
+}
+
+/** CP4a: a win opens the card offer; pre-CP4 flows resolve it with the auto-pick/auto-discard rules. */
+export async function settleCards(page: Page): Promise<void> {
+  for (let i = 0; i < 4; i++) {
+    const open = await page.evaluate(() => {
+      const w = (window as unknown as { __atlasTest: AtlasTestApi }).__atlasTest;
+      const p = w.getState().players.find((x) => x.id === 'p1');
+      return !!(p?.offer || p?.discard) && w.autoResolveCards();
+    });
+    if (!open) return;
+  }
 }
 
 /** Force one win on the current target through the real host (banner included). */

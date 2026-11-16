@@ -61,3 +61,5 @@
 .badge.d-easy { background: #8fdc6f; }
 .badge.d-medium { background: #ffd166; }
 .badge.d-hard { background: #ff8a65; }
+.badge.mod { background: #fff; }
+.mg-meta { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }

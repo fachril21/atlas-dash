@@ -27,3 +27,5 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 |---|---|
 | Defensive cards in CP4a | Option A. Payung Tameng and Cermin Balik get `phase: 'b'` and are left out of the CP4a offer pool, which leaves 9 boost cards. They stay defined as data. |
 | Ojek Kilat at FINAL, Zona Lebar on Simon hard | Kept as designed. Flagged for playtest. |
+| Engineer interpretations (CP4a) | Accepted as built: Santai Dulu on hard gives a 6 s cooldown (test-plan line was stale); auto-discard breaks rarity ties by oldest first, with new cards last; Ojek Kilat adds +2 wins, clamped to `winsRequired`; when the match ends, open card screens close with no cards given. |
+| Debug reducer actions | `debug*` actions are accepted by the reducer in any build. Before multiplayer, the server must reject them. Tracked for CP4b / multiplayer. |

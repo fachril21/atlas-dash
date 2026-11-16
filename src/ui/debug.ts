@@ -3,7 +3,7 @@
  *   window.__atlasTest = { getState, dispatch, forceMinigameResult, setTimeScale, events, exportLog, ... }
  * plus a small panel with the seed, time scale and an "export log" button.
  */
-import type { GameAction, GameEvent, GameSession, GameState, LoggedEvent } from '../logic';
+import { getCard, type GameAction, type GameEvent, type GameSession, type GameState, type LoggedEvent } from '../logic';
 
 export interface DebugDeps {
   getSession(): GameSession;
@@ -13,6 +13,8 @@ export interface DebugDeps {
   /** Resolve the human's current attempt (starting one first if allowed). False if impossible. */
   forceMinigameResult(passed: boolean): boolean;
   setPaused(paused: boolean): void;
+  /** Player id of the human (card hooks act on this player). */
+  human: string;
   extra: Record<string, unknown>;
 }
 
@@ -26,6 +28,16 @@ export interface AtlasTestApi {
   pause(): void;
   resume(): void;
   seed(): number;
+  /** Put a card in the human's hand (hand > 5 opens the discard screen). */
+  giveCard(cardId: string): boolean;
+  /** The human's hand: uid, card id and handSeq, left to right. */
+  getHand(): { uid: string; id: string; seq: number }[];
+  /** Empty the human's hand (closes the discard screen if open). */
+  clearHand(): boolean;
+  /** Open the pick screen now. `ids` fixes the offered cards; `pick` the N (default 2). */
+  forceOffer(ids?: string[], pick?: number): boolean;
+  /** Resolve whichever card screen is open with the auto-pick / auto-discard rule. */
+  autoResolveCards(): boolean;
 }
 
 declare global {
@@ -33,6 +45,10 @@ declare global {
     __atlasTest?: AtlasTestApi;
     atlas?: Record<string, unknown>;
   }
+}
+
+function isRejected(events: GameEvent[]): boolean {
+  return events.length === 1 && events[0]?.type === 'actionRejected';
 }
 
 export function installDebug(deps: DebugDeps): AtlasTestApi {
@@ -61,6 +77,14 @@ export function installDebug(deps: DebugDeps): AtlasTestApi {
     pause: () => deps.setPaused(true),
     resume: () => deps.setPaused(false),
     seed: () => deps.getSeed(),
+    giveCard: (cardId) => !isRejected(deps.getSession().dispatch({ type: 'debugGrantCard', playerId: deps.human, cardId })),
+    getHand: () => (deps.getSession().state.players.find((p) => p.id === deps.human)?.hand ?? []).map((c) => ({ uid: c.uid, id: getCard(c.defId).id, seq: c.seq })),
+    clearHand: () => !isRejected(deps.getSession().dispatch({ type: 'debugClearHand', playerId: deps.human })),
+    forceOffer: (ids, pick) => {
+      const action: GameAction = { type: 'debugForceOffer', playerId: deps.human, ...(ids ? { cardIds: ids } : {}), ...(pick !== undefined ? { pick } : {}) };
+      return !isRejected(deps.getSession().dispatch(action));
+    },
+    autoResolveCards: () => !isRejected(deps.getSession().dispatch({ type: 'autoCards', playerId: deps.human })),
   };
   window.__atlasTest = api;
   window.atlas = { ...deps.extra, get session() { return deps.getSession(); } };

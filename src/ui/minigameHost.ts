@@ -6,6 +6,7 @@
 import { RESULT_BANNER_MS, type Attempt, type MinigameContext, type MinigameResult } from '../logic';
 import { getMinigameDefinition } from './minigames/registry';
 import type { MinigameInstance } from './minigames/types';
+import { modifierBadges } from './modifierBadges';
 import { t } from './strings';
 import './minigameHost.css';
 
@@ -71,7 +72,8 @@ export class MinigameHost {
     this.introEl.innerHTML = `
       <p class="mg-rule">${t(def.introKey)}</p>
       ${def.introIconHtml}
-      <p class="mg-meta"><span class="badge d-${ctx.difficulty}">${t(`difficulty.${ctx.difficulty}`)}</span></p>
+      <p class="mg-meta"><span class="badge d-${ctx.difficulty}" data-testid="mg-difficulty">${t(`difficulty.${ctx.difficulty}`)}</span>
+        ${modifierBadges(attempt.minigameId, ctx.modifiers, attempt).map((b) => `<span class="badge mod" data-testid="mg-badge-${b.key}">${b.text}</span>`).join('')}</p>
       <p class="mg-count" data-testid="mg-countdown"></p>`;
     this.instance = def.create(this.playEl, ctx, level);
     this.instance.onFinish((r) => this.showBanner(r));
@@ -129,6 +131,7 @@ export class MinigameHost {
     this.overlay.hidden = true;
     this.overlay.classList.remove('paused');
     delete this.overlay.dataset.phase;
+    delete this.overlay.dataset.minigame; // B-1: do not leave the last draw behind
     this.onResult = null;
   }
 

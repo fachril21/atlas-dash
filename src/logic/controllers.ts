@@ -72,6 +72,9 @@ export class PlaceholderBotController implements PlayerController {
     const me = getPlayer(state, this.playerId);
     if (!me || state.status !== 'running' || me.phase === 'finished') return null;
 
+    // CP4a: bots take card offers and discard by the auto rules; they never play cards (CP5).
+    if (me.offer || me.discard) return { type: 'autoCards', playerId: me.id };
+
     if (me.phase === 'playing' && me.attempt) {
       if (!this.pendingResult) {
         // Decide the whole attempt up front: outcome + how long it takes.

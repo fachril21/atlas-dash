@@ -1,0 +1,210 @@
+/* Card UI: hand bar, detail popover, offer + discard screens, pending badges (ui-flow §4-§6). */
+:root {
+  --card-w: 68px;
+  --card-h: 92px;
+  --hand-h: calc(var(--card-h) + 4px);
+  --pending-h: 34px;
+  --c-common: #9aa5b1;
+  --c-rare: #3a86ff;
+  --c-epic: #b04fd8;
+}
+.cards-root { position: absolute; inset: 0; z-index: 25; pointer-events: none; }
+.cards-root[hidden], .card-modal[hidden], .hand-detail[hidden] { display: none; }
+.cards-root button { pointer-events: auto; font: inherit; }
+
+/* Card face. Boost = round frame + arrow; sabotage = jagged frame + bolt (shape, not colour alone). */
+.cface {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px 4px;
+  background: #fff;
+  color: #23324a;
+  text-align: center;
+  overflow: hidden;
+}
+.cface.t-boost { border: 3px solid #1fa565; border-radius: 22px; }
+.cface.t-sabotage { border: 3px solid #d1495b; border-radius: 4px; clip-path: polygon(0 6%, 8% 0, 16% 6%, 24% 0, 32% 6%, 40% 0, 48% 6%, 56% 0, 64% 6%, 72% 0, 80% 6%, 88% 0, 100% 6%, 100% 94%, 92% 100%, 84% 94%, 76% 100%, 68% 94%, 60% 100%, 52% 94%, 44% 100%, 36% 94%, 28% 100%, 20% 94%, 12% 100%, 0 94%); }
+.cface .ctype { position: absolute; top: 3px; left: 7px; font-size: 11px; font-weight: 900; }
+.cface.t-boost .ctype { color: #1fa565; }
+.cface.t-sabotage .ctype { color: #d1495b; }
+.cface .cicon { font-size: 26px; line-height: 1; }
+.cface .cname { font-size: 11px; font-weight: 800; line-height: 1.1; }
+.cface .cdesc { font-size: 11px; font-weight: 500; line-height: 1.2; }
+.cface .gem { position: absolute; top: 4px; right: 6px; width: 10px; height: 10px; transform: rotate(45deg); background: var(--c-common); }
+.cface.r-rare .gem { background: var(--c-rare); }
+.cface.r-epic .gem { background: linear-gradient(135deg, var(--c-epic), #f2c14e); box-shadow: 0 0 6px #f2c14e; }
+
+/* Hand bar */
+.hand-bar {
+  position: absolute;
+  left: calc(8px + var(--safe-left));
+  right: calc(8px + var(--safe-right));
+  bottom: calc(8px + var(--safe-bottom));
+  height: var(--hand-h);
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.hand-slot {
+  flex: 0 1 var(--card-w);
+  min-width: 0;
+  height: var(--card-h);
+  box-sizing: border-box;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+}
+.hand-slot.empty { border: 2px dashed rgba(35, 50, 74, 0.45); background: rgba(255, 255, 255, 0.25); font-size: 11px; }
+#hud .cards-root button.card-btn.hand-card {
+  width: 100%;
+  height: 100%;
+  min-width: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+@media (hover: hover) { #hud .cards-root button.card-btn.hand-card:hover { transform: scale(1.15); } }
+#hud .cards-root button.card-btn.hand-card.selected { transform: translateY(-8px); }
+.hand-card.dim .cface { opacity: 0.5; }
+.hand-card .cface { box-shadow: 0 3px 8px rgba(35, 50, 74, 0.25); }
+
+/* Pending badges */
+.pending-row {
+  position: absolute;
+  left: calc(8px + var(--safe-left));
+  right: calc(8px + var(--safe-right));
+  bottom: calc(8px + var(--safe-bottom) + var(--hand-h) + 6px);
+  min-height: var(--pending-h);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-end;
+  justify-content: center;
+}
+.pbadge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid #1fa565;
+  font-size: 14px;
+  font-weight: 800;
+  pointer-events: auto;
+}
+.pbadge.t-sabotage { border-color: #d1495b; border-radius: 4px; }
+
+/* Detail popover */
+.hand-detail {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(8px + var(--safe-bottom) + var(--hand-h) + 10px);
+  width: min(440px, calc(100vw - 24px));
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(35, 50, 74, 0.3);
+  pointer-events: auto;
+  z-index: 2;
+}
+.detail-card { display: grid; grid-template-columns: 84px 1fr; grid-template-areas: 'face text' 'actions actions'; gap: 10px 12px; align-items: start; }
+.detail-card > .cface { grid-area: face; height: 112px; }
+.detail-text { grid-area: text; min-width: 0; }
+.detail-text h3 { margin: 0 0 4px; font-size: 1.1em; }
+.detail-text p { margin: 0 0 4px; font-size: 0.9em; font-weight: 500; }
+.detail-text .reason { color: #b0412e; font-weight: 800; }
+.detail-text .warning { color: #8a5a00; font-weight: 800; background: #fff3cd; padding: 2px 8px; border-radius: 8px; }
+.detail-actions { grid-area: actions; display: flex; gap: 10px; justify-content: flex-end; }
+.detail-actions button { flex: 1; }
+.detail-actions button:disabled { background: #9aa9bb; cursor: not-allowed; }
+
+/* Offer + discard screens */
+.card-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: calc(12px + var(--safe-top)) calc(12px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left));
+  background: rgba(35, 50, 74, 0.55);
+  pointer-events: auto;
+  overflow-y: auto;
+}
+.card-screen {
+  width: min(900px, 100%);
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: 24px;
+  background: #fff;
+  text-align: center;
+}
+.card-screen h2 { margin: 0 0 8px; }
+.card-screen .counter { margin: 10px 0; font-weight: 800; }
+.timer-bar { height: 6px; border-radius: 999px; background: #e3eef6; overflow: hidden; margin-bottom: 12px; }
+.timer-bar > span { display: block; height: 100%; width: 100%; background: #ff4d6d; }
+
+.offer-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+#hud .cards-root button.card-btn.offer-card {
+  position: relative;
+  width: clamp(88px, calc((100% - 32px) / 5), 150px);
+  min-width: 88px;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 22px;
+  cursor: pointer;
+  animation: card-flip 0.35s both;
+  animation-delay: calc(var(--i) * 0.08s);
+  transition: transform 0.12s;
+}
+#hud .cards-root button.card-btn.offer-card.marked { transform: translateY(-10px); }
+.offer-card.marked .cface, .discard-card.marked .cface { box-shadow: 0 0 0 4px #ffd166; }
+.offer-card .cicon { font-size: 34px; }
+.offer-card .cname { font-size: 13px; }
+.check {
+  position: absolute; right: 4px; bottom: 4px; min-width: 24px; height: 24px; border-radius: 50%;
+  background: #1fa565; color: #fff; font-weight: 900; display: grid; place-items: center; font-size: 14px;
+}
+@keyframes card-flip { from { transform: rotateY(90deg); opacity: 0; } to { transform: rotateY(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #hud .cards-root button.card-btn.offer-card { animation: none; } }
+
+/* Discard grid: mobile = 5 columns, so 9 cards wrap into two rows; wide screens fit up to 9 in one row. */
+.discard-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; justify-items: center; }
+#hud .cards-root button.card-btn.discard-card {
+  position: relative;
+  width: 100%;
+  max-width: 120px;
+  aspect-ratio: 3 / 4;
+  min-width: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 18px;
+  cursor: pointer;
+}
+#hud .cards-root button.card-btn.discard-card.marked { transform: rotate(-6deg); opacity: 0.75; }
+.discard-card .new-tag {
+  position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%);
+  background: #ff4d6d; color: #fff; font-size: 11px; font-weight: 900; padding: 1px 8px; border-radius: 999px;
+}
+@media (min-width: 900px) {
+  .discard-grid { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; }
+  .discard-grid[data-count="9"], .discard-grid[data-count="8"], .discard-grid[data-count="7"], .discard-grid[data-count="6"] { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+}
+
+/* Make room for pending row + hand under the target panel. */
+.target-panel { bottom: calc(8px + var(--safe-bottom) + var(--hand-h) + var(--pending-h) + 14px) !important; }

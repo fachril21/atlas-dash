@@ -17,7 +17,7 @@ import {
   type MinigameContext,
 } from '../src/logic';
 import { t } from '../src/ui/strings';
-import { indonesiaData } from './helpers';
+import { indonesiaData, settleCards } from './helpers';
 
 const map = loadMap(indonesiaData(), 'standard', MINIGAME_LOGIC);
 const pool = minigamePool(map.data);
@@ -26,7 +26,7 @@ const act = (s: GameState, a: GameAction): GameState => {
   const r = applyAction(map, s, a);
   const rej = r.events.find((e) => e.type === 'actionRejected');
   if (rej) throw new Error(`rejected ${JSON.stringify(a)}: ${JSON.stringify(rej)}`);
-  return r.state;
+  return settleCards(map, r.state);
 };
 
 describe('cooldown 8/6/4 s (DR-09 option B)', () => {

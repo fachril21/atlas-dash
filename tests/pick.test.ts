@@ -14,7 +14,7 @@ import {
   type GameAction,
   type GameState,
 } from '../src/logic';
-import { indonesiaData, ROOT } from './helpers';
+import { indonesiaData, ROOT, settleCards } from './helpers';
 
 const map = loadMap(indonesiaData(), 'standard', MINIGAME_LOGIC);
 const pool = minigamePool(map.data);
@@ -138,7 +138,7 @@ describe('pick inside the reducer (DR-02)', () => {
       const r = applyAction(map, state, a);
       const rej = r.events.find((e) => e.type === 'actionRejected');
       if (rej) throw new Error(`rejected ${JSON.stringify(a)}: ${JSON.stringify(rej)}`);
-      state = r.state;
+      state = settleCards(map, r.state);
     }
     return state;
   };
