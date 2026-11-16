@@ -1,6 +1,6 @@
 # Minigame — Spesifikasi MVP
 
-**Status:** designed · **Updated:** 2026-11-16 (v0.3, CP3a: DR-02, DR-04, DR-05, DR-17/20/21 untuk Tap Tepat Waktu) · Kembali ke [GDD](gdd.md) · Requirement: R2, R3, R7, M1, M2, K1
+**Status:** designed · **Updated:** 2026-11-16 (v0.4, CP3b: Simon + Hindari Rintangan dilengkapi setara Tap Tepat Waktu; DR-02 undian untuk pool 3, DR-16, DR-17, DR-19, DR-20, DR-44; v0.3 CP3a: DR-02, DR-04, DR-05, DR-17/20/21 untuk Tap Tepat Waktu) · Kembali ke [GDD](gdd.md) · Requirement: R2, R3, R7, M1, M2, K1
 
 7 minigame MVP (R7). Semua angka adalah titik awal untuk playtest. Nilai cooldown (R2) dan jumlah kartu (K1) **tidak** didefinisikan di sini; itu milik race layer ([gdd.md](gdd.md), [cards.md](cards.md)).
 
@@ -14,7 +14,8 @@
 
 **Pause di dalam minigame:** `pause()` membekukan timer minigame dan semua gerak; shell menutup area main dengan overlay pause (konten tidak terlihat); waktu pause tidak dihitung di `timeTakenMs`. Pause saat intro membekukan hitung mundur intro. (Aturan pause di luar minigame: CP3b, DR-08.)
 
-Durasi dasar 15–30 s. **Clamp oleh race layer:** race layer menjumlah semua `timeDelta` lalu meng-clamp-nya sehingga `durasi dasar + timeDelta` berada di **10–40 s**; minigame menerima `timeDelta` yang sudah di-clamp dan tidak meng-clamp lagi. Contoh Tap Tepat Waktu (dasar 20 s): 2× Jam Rusak (−10) → 10 s; 3× Jam Rusak tidak mungkin (maxStacks 2). Minigame dengan pemetaan `timeDelta` khusus (Hindari Rintangan, Tebak Lokasi) memakai nilai yang sudah di-clamp ini (contoh lain: CP3b/CP4, DR-17).
+Durasi dasar 15–30 s. **Clamp oleh race layer:** race layer menjumlah semua `timeDelta` lalu meng-clamp-nya sehingga `durasi dasar + timeDelta` berada di **10–40 s**; minigame menerima `timeDelta` yang sudah di-clamp dan tidak meng-clamp lagi. Contoh Tap Tepat Waktu (dasar 20 s): 2× Jam Rusak (−10) → 10 s; 3× Jam Rusak tidak mungkin (maxStacks 2). Minigame dengan pemetaan `timeDelta` khusus (Hindari Rintangan, Tebak Lokasi) memakai nilai yang sudah di-clamp ini (DR-17).
+**Urutan (DR-17):** (1) race layer menjumlah `timeDelta` lalu clamp sehingga dasar + total ∈ 10–40 s; (2) minigame menerapkan pemetaannya ke nilai itu; (3) perpanjangan durasi khusus minigame dari `extraTarget` ditambahkan **sesudahnya** dan tidak di-clamp lagi (Hindari Rintangan +5 s per count, Simon +4 s per count; `extraTarget` total maks +2 per minigame). Contoh per minigame ada di §2–§4.
 
 ### 1.2 Interface (TypeScript, dibangun engineer)
 
@@ -93,10 +94,16 @@ Setiap stream adalah PRNG sendiri (mis. mulberry32) dengan seed `hash(matchSeed,
 - `Math.random()` hanya boleh dipakai sekali: membuat `matchSeed` saat match baru (DR-21). Semua random lain lewat stream di atas.
 
 ### 1.3 Pemilihan minigame (M2) dan percobaan ulang (DR-02)
-- Undian dari pool yang `requires(map)` lolos, memakai stream `minigamePick`.
-- **Setelah gagal:** percobaan berikutnya pada target yang sama = **minigame sama**, seed baru (`attemptIndex` + 1), intro 1,5 s. Tidak diundi ulang.
-- **Setelah menang** (win ke-1 → ke-2 di target yang sama) dan **saat target baru dipilih** (region baru, atau ganti target): diundi ulang, **tidak boleh sama** dengan minigame terakhir yang dimainkan pemain itu. Jadi win ke-2 di sebuah region selalu memakai minigame berbeda dari win ke-1.
-- **Pool hanya 1 minigame** (CP3a: hanya Tap Tepat Waktu): aturan "tidak boleh sama" dilewati, minigame itu dipakai terus.
+- **Kapan diundi:** (a) saat target baru dipilih (region baru, atau ganti target), (b) tepat setelah sebuah win diproses (win ke-1 → ke-2 di target yang sama). **Tidak** diundi setelah gagal: percobaan berikutnya pada target yang sama = **minigame sama**, seed baru (`attemptIndex` + 1), intro 1,5 s. Hasil undian tidak ditampilkan di UI sebelum pemain menekan Mulai (supaya ganti target tidak bisa dipakai untuk "mengocok" minigame).
+- **Algoritma undian (CP3b, DR-02; satu-satunya definisi):**
+  1. `registry` = daftar minigame yang terdaftar di build, **berurutan tetap** seperti tabel §9 (CP3b: `tap_timing`, `simon`, `dodge_runner`).
+  2. `pool` = anggota `registry` yang `requires(map)` bernilai true (atau tidak punya `requires`). `requires` dievaluasi **sekali per peta**, level peta saja; spesifikasi ini tidak punya syarat per region. Urutan `pool` = urutan `registry`.
+  3. `last` = `id` minigame terakhir yang **dimainkan** pemain itu (percobaan gagal dihitung), disimpan per pemain sepanjang match dan **tidak** di-reset saat ganti region atau target. Awal match: `last` kosong.
+  4. `kandidat` = `pool` tanpa `last`. Bila `kandidat` kosong (pool hanya 1 minigame, atau `last` bukan anggota pool), `kandidat` = `pool`.
+  5. Tarik **tepat satu** angka dari stream `minigamePick` pemain itu, dan **selalu** tarik walau `kandidat` hanya 1 (supaya jumlah tarikan = jumlah undian): `pick = kandidat[rng.int(kandidat.length)]`.
+  6. Bila `pool` kosong, peta tidak valid (validator peta menolak, pool minimal harus berisi `tap_timing`).
+- **Akibat:** pool 1 minigame → itu terus. Pool 2 → selang-seling ketat. Pool 3 (CP3b) → tiap undian memilih 1 dari 2 minigame lain, tiap kandidat peluang 50%; tiga minigame yang sama tidak mungkin muncul dua kali berturut-turut. Win ke-2 di sebuah region selalu memakai minigame berbeda dari win ke-1.
+- **Contoh:** `last = simon` → `kandidat = [tap_timing, dodge_runner]`, tarikan 0 → `tap_timing`, tarikan 1 → `dodge_runner`. Setelah gagal di `tap_timing`, ulang memakai `tap_timing` lagi tanpa tarikan. Bila Tebak Lokasi masuk pool (CP5) tapi peta tidak lolos `requires`, ia tidak ada di `pool` dan `kandidat` tidak berubah.
 - Difficulty = difficulty tipe region target ([map-indonesia.md](map-indonesia.md#2-tipe-region)), lalu digeser kartu (clamp easy..hard).
 - Region start dan finish tidak pernah memanggil minigame (D-004); difficulty tipe region mereka diabaikan.
 
@@ -116,7 +123,7 @@ Batas: hit-stop ≤ 0,15 s, flash ≤ 3×/detik, shake bisa diatur 0–100% di P
 Setiap minigame mendefinisikan arti tiap modifier di tabelnya. Default bila tidak disebut:
 - `timeDelta` → ubah durasi total.
 - `tolerance` → perbesar zona/hitbox target pemain ×mult.
-- `speed` → kalikan semua kecepatan/tempo ×mult.
+- `speed` → kalikan semua kecepatan/tempo ×mult. Tempo berupa **durasi** (waktu nyala, waktu muncul) dibagi mult; tempo berupa **interval/jeda** (spawn, jeda antar langkah) juga dibagi mult. Prinsip: mult > 1 selalu membuat minigame lebih sibuk, tidak pernah lebih sepi (DR-16).
 - `extraTarget` → syarat lulus +count.
 - `fog` → overlay kabut putih 45% opacity, berputar pelan, menutupi ±40% area secara acak bergeser (reducedMotion: statis).
 - `hint` → bantuan khusus per minigame.
@@ -158,54 +165,79 @@ Di CP3a belum ada kartu, jadi `modifiers` selalu kosong; tabel di atas berlaku m
 ## 3. Simon (`simon`) — 2D
 **Aturan 3 detik:** "Ulangi urutan warnanya!" (ikon: 2 pad menyala, jari menekan).
 
-- **Input:** tap/klik pad; desktop juga tombol 1–6.
-- **Lulus:** menyelesaikan ronde dengan panjang `targetLength`. Ronde mulai dari panjang 3, +1 tiap ronde benar. Salah = 1 mistake, ronde diulang dengan urutan sama. Diam > 3 s saat giliran input = 1 mistake.
-- **Durasi:** 30 s (waktu playback ikut dihitung).
-- **Acak per run:** urutan pad (pad sama boleh berulang, maks 2 kali berturut-turut).
-- **Aksesibilitas:** tiap pad punya warna + bentuk + nada berbeda (bukan warna saja).
+- **Input:** tap/klik pad (pointerdown; waktu input = timestamp event); desktop juga tombol 1–`padCount` (keydown, tanpa auto-repeat) dan R untuk "Ulang" (hint). Input hanya dihitung di fase **input**; saat playback atau jeda ronde, tap diabaikan (bukan mistake). Tap di luar pad diabaikan. Dua pointer bersamaan diproses berurutan menurut timestamp, masing-masing 1 input.
+- **Pad:** `padCount` pad id 0..5; 4 pad = grid 2×2, 6 pad = grid 2×3 (portrait), tiap pad ≥ 48 px. Warna + bentuk + nada berbeda (bukan warna saja): 0 merah ●, 1 biru ■, 2 kuning ▲, 3 hijau ◆, 4 ungu ★, 5 oranye ⬢. Pad yang ditekan pemain menyala ≥ 0,15 s dengan nadanya.
+- **Struktur ronde:** `sequence` (dibuat sekali di `generateLevel`, panjang = `targetLength`). Ronde `r` (mulai 0) memakai awalan `sequence[0 .. startLength + r)`. Alur satu ronde: jeda `roundDelayMs` (0,8 s) → **playback** (tiap langkah: nyala `flashMs`, lalu jeda `gapMs`) → **input** (pemain mengetik awalan dari langkah pertama). Ronde baru: `r + 1`.
+- **Cek input:** langkah ke-`i` benar bila pad = `sequence[i]`. Salah = 1 mistake. **Idle:** bila tidak ada input selama `idleTimeoutMs` (3 s) sejak fase input mulai atau sejak input benar terakhir, itu juga 1 mistake (DR-19).
+- **Setelah mistake** (salah atau idle, perlakuan sama): bunyi "bonk" + feedback, lalu ronde yang sama diulang dari awal (jeda 0,8 s, playback ulang urutan yang sama, input mulai dari langkah pertama). Mistake dihitung kumulatif sepanjang run, tidak di-reset antar ronde. **Gagal (`failLimit`)** segera saat `mistakes > mistakesAllowed` (hard: mistake pertama langsung gagal; tidak ada playback ulang).
+- **Lulus:** semua ronde selesai sampai `targetLength` (input terakhir benar). **Gagal (`timeout`)** bila waktu habis sebelum itu. Input dengan `tMs ≥ durationMs` diabaikan; input terakhir yang benar pada `tMs < durationMs` tetap lulus.
+- **Durasi:** 30 s, dihitung dari akhir intro; jeda ronde dan playback ikut dihitung. Pause membekukan semuanya, termasuk timer idle.
+- **`progress`** = ronde selesai / total ronde (`targetLength − startLength + 1`). **`timeTakenMs`** = waktu input benar terakhir (lulus) atau waktu gagal.
+- **Acak per run (semua di `generateLevel`):** `sequence` ditarik berurutan dari PRNG (jadi awalan sama untuk seed sama walau panjang berbeda): tiap langkah `rng.int(padCount)`; bila 2 langkah sebelumnya pad yang sama, tarik ulang dari pad lain (pad sama maks 2 berturut-turut). Hanya urutan yang acak; semua knob lain tetap.
+- **Level (output `generateLevel`):** `{ durationMs, padCount, startLength, targetLength, sequence[], flashMs, gapMs, roundDelayMs, idleTimeoutMs, mistakesAllowed, replayAvailable, fog }`.
 
 | Knob | easy | medium | hard |
 |---|---|---|---|
 | jumlah pad | 4 | 4 | 6 |
-| targetLength | 5 | 6 | 7 |
-| waktu nyala per langkah | 0,70 s | 0,55 s | 0,40 s |
+| startLength | 3 | 3 | 3 |
+| targetLength | 4 | 5 | 6 |
+| flashMs (waktu nyala per langkah) | 700 | 550 | 400 |
+| gapMs (jeda antar langkah) | 150 | 150 | 150 |
 | mistakesAllowed | 2 | 1 | 0 |
+| roundDelayMs / idleTimeoutMs | 800 / 3000 | 800 / 3000 | 800 / 3000 |
+
+**Anggaran waktu (alasan `targetLength` 4/5/6, bukan 5/6/7 seperti v0.2):** dengan 30 s, 7 langkah terakhir hard tidak muat. Perkiraan pemain kasual, input ≈ 0,60 / 0,50 / 0,45 s per langkah (easy/medium/hard): easy 3→4 = 7 langkah × 0,85 + 7 × 0,60 + 2 × 0,8 ≈ **11,8 s** (dua mistake pada ronde 4 menambah ≈ 13 s → ≈ 25 s); medium 3→5 = 12 × 0,70 + 12 × 0,50 + 3 × 0,8 ≈ **16,8 s** (+1 mistake di ronde 5 ≈ 23,6 s); hard 3→6 = 18 × 0,55 + 18 × 0,45 + 4 × 0,8 ≈ **21,2 s**. Semuanya muat di 30 s dengan sisa. Hard + 2× Jam Rusak (20 s) sengaja nyaris mustahil; dipantau di playtest.
 
 | Modifier | Efek |
 |---|---|
-| timeDelta | durasi ± detik |
-| tolerance | idle timeout 3 s ×mult; mult ≥ 1,3 juga +1 mistakesAllowed |
-| speed | waktu nyala ÷mult |
-| extraTarget | targetLength +count |
-| fog | pad redup 50%, nyala pad 30% lebih lemah |
-| hint | tombol "Ulang" muncul: putar ulang urutan ronde ini 1× (sekali per minigame) |
+| timeDelta | durasi ± detik (sudah di-clamp race layer, §1.1). Contoh: 2× Jam Rusak → 20 s; 2× Jam Pasir → 40 s |
+| tolerance | `idleTimeoutMs` ×mult (maks 6000); mult ≥ 1,3 juga `mistakesAllowed` +1 (sekali, tidak bertumpuk) |
+| speed | `flashMs` ÷mult (min 200) dan `gapMs` ÷mult (min 80); `roundDelayMs` tetap |
+| extraTarget | `targetLength` +count (maks +2) dan durasi +4 s per count (di luar clamp, §1.1) |
+| fog | pad idle redup 50%, nyala pad 30% lebih lemah; nada tetap penuh (tidak mengubah aturan) |
+| hint | `replayAvailable`: tombol "Ulang" (≥ 48 px) muncul di fase input; menekannya memutar ulang awalan ronde ini dengan tempo normal, lalu input mulai dari langkah pertama dan timer idle mulai ulang. Tidak dihitung mistake; sekali per minigame |
+
+Di CP3b belum ada kartu, jadi `modifiers` selalu kosong; tabel modifier berlaku mulai CP4. `requires`: tidak ada (tidak memakai tema peta, DR-44).
 
 ## 4. Hindari Rintangan (`dodge_runner`) — 3D
 **Aturan 3 detik:** "Geser kiri-kanan, hindari rintangan!" (ikon: pion pindah jalur, rintangan lewat).
 
-- **Input:** swipe kiri/kanan atau tap separuh kiri/kanan layar; mouse klik separuh kiri/kanan; desktop juga ←/→ atau A/D. 3 jalur; pindah jalur 0,12 s.
-- **Lulus:** bertahan sampai waktu habis dengan nyawa > 0. (Ini minigame bertahan: `timeTakenMs` = durasi bila lulus.)
-- **Durasi:** 20 s.
-- **Acak per run:** pola spawn rintangan (selalu ada minimal 1 jalur kosong per baris), jenis prop.
-- **Tema dari peta:** prop rintangan dari `map.minigameThemes.dodge_runner.obstacles` (Indonesia: becak, bajaj, gerobak bakso, ayam, durian). Jalan memakai warna tema region.
-- Kamera: belakang-atas 30°, pion chibi di jalur tengah.
+- **Dunia:** 3 jalur (−1, 0, +1), pion mulai di jalur 0. Rintangan datang dalam **baris**; tiap baris menutup 1 atau 2 jalur dan **selalu menyisakan ≥ 1 jalur kosong**. Seluruh aturan tabrakan berbasis **waktu** (bukan posisi 3D), jadi bisa dites di Vitest node; kecepatan (m/s) hanya menentukan jarak visual `jarak = kecepatan × waktu`.
+- **Input (semua menghasilkan `{ dir: −1 | +1, tMs }` ke `step`):**
+  - Tap/klik: separuh kiri layar = −1, separuh kanan = +1. Swipe (pointer bergeser horizontal ≥ 24 px dan |dx| > |dy|): arah swipe.
+  - **Satu gestur = tepat 1 pindah.** Gestur diputuskan pada yang lebih dulu: pergeseran ≥ 24 px (swipe), pointerup, atau 100 ms ditahan tanpa geser (tap). `tMs` = waktu keputusan itu. Pengenalan gestur ada di lapisan render; `step` hanya menerima `dir`.
+  - Desktop: ←/→ atau A/D (keydown, tanpa auto-repeat). `touch-action: none` di area main.
+  - Tiap pindah menggeser jalur target ±1 (dijepit −1..+1). Tween visual `laneChangeMs` = 120 ms; **jalur logis** pemain berganti pada `tMs + 60 ms`. Pindah beruntun diizinkan (tiap pindah dihitung terhadap jalur target terakhir); tidak ada input lock.
+- **Tabrakan:** baris `k` punya waktu lewat `tHitMs`. Baris adalah **kena** bila di suatu waktu dalam `[tHitMs − hw, tHitMs + hw]` jalur logis pemain ∈ jalur tertutup baris itu (`hw` = `hitHalfWindowMs` = 150 ms). Baris dinilai saat `tMs ≥ tHitMs + hw`, dari riwayat pindah (timestamp), jadi hasil tidak bergantung frame rate. Kena = nyawa −1, lalu **i-frame** `iFrameMs`: baris yang jendelanya mulai di dalam i-frame tidak dihitung kena. Nyawa 0 = **gagal (`failLimit`)** saat itu juga.
+- **Lulus:** bertahan sampai `durationMs` dengan nyawa > 0 (`reason: 'success'`; `'timeout'` tidak dipakai di minigame bertahan). Baris hanya dibuat bila `tHitMs + hw ≤ durationMs`, jadi tidak ada baris yang belum dinilai saat waktu habis.
+- **`progress`** = `min(1, tMs / durationMs)`. **`timeTakenMs`** = `durationMs` bila lulus; bila gagal = waktu nyawa habis.
+- **Durasi:** 20 s dari akhir intro (+ perpanjangan `extraTarget`, lihat tabel). Baris pertama lewat di `firstRowMs` = 2000 ms, lalu satu baris per `intervalMs`.
+- **Acak per run (semua di `generateLevel`, ditarik berurutan per baris):** apakah baris 2-jalur (peluang tabel), jalur kosong (`rng.int(3)`), prop tiap jalur tertutup (`obstacles[rng.int(n)]`). **Aturan adil:** bila baris `k−1` dan `k` sama-sama 2-jalur, jalur kosong keduanya harus berjarak ≤ 1 jalur (pemain tidak perlu pindah 2 jalur dalam 1 interval); bila tidak, jalur kosong baris `k` diundi ulang dari jalur yang memenuhi.
+- **Tema dari peta:** prop rintangan dari `map.minigameThemes.dodge_runner.obstacles` (Indonesia: becak, bajaj, gerobak bakso, ayam, durian). Jalan memakai warna tema region. `requires`: `obstacles` berisi ≥ 3 id (DR-44).
+- Kamera: belakang-atas 30°, pion chibi di jalur tengah. Jarak lihat `visibleDistanceM` = 40 m.
+- **Level (output `generateLevel`):** `{ durationMs, lives, iFrameMs, speedMps, intervalMs, firstRowMs, hitHalfWindowMs, laneChangeMs, rows[], visibleDistanceM, hintLeadMs }`, dengan `rows[i] = { tHitMs, blocked: number[], props: string[] }`.
 
 | Knob | easy | medium | hard |
 |---|---|---|---|
 | nyawa | 3 | 2 | 1 |
-| kecepatan (m/s) | 6 | 8 | 10 |
-| interval spawn baris | 1,2 s | 0,9 s | 0,65 s |
+| kecepatan (m/s, visual) | 6 | 8 | 10 |
+| interval spawn baris (`intervalMs`) | 1200 | 900 | 650 |
 | peluang baris 2-jalur | 0% | 20% | 40% |
-| i-frame setelah kena | 1,0 s | 1,0 s | — |
+| i-frame setelah kena (`iFrameMs`) | 1000 | 1000 | 0 (nyawa 1, tidak berlaku) |
+| jumlah baris pada 20 s, `M` = 1 (`⌊(durasi − hw − firstRow) ÷ interval⌋ + 1`) | 15 | 20 | 28 |
+
+**Pengali tempo `M`** (menggabungkan `speed` dan `timeDelta`, DR-16): `M = speedMult × (1 − 0,03 × Σ timeDelta detik)`, lalu dijepit ke **0,70–1,50**. Kecepatan efektif = kecepatan × `M`; `intervalMs` efektif = `intervalMs` ÷ `M` (baris datang **lebih sering** saat M > 1, jarak antar baris dalam meter tetap); `firstRowMs` tidak berubah. Mis. Ngebut ×1,25 di medium: 10 m/s, interval 720 ms.
 
 | Modifier | Efek (khusus: minigame bertahan) |
 |---|---|
-| timeDelta | **tidak** ubah durasi; tiap −1 s → kecepatan +3%, tiap +1 s → kecepatan −3% (supaya Jam Rusak tetap sabotase) |
-| tolerance | hitbox pemain ×(1/mult) |
-| speed | kecepatan dan interval spawn ×mult |
-| extraTarget | nyawa −count (min 1); bila sudah 1, durasi +5 s per count |
-| fog | kabut jarak jauh: rintangan baru terlihat 40% lebih dekat |
-| hint | bayangan rintangan muncul di jalan 0,5 s lebih awal |
+| timeDelta | **tidak** ubah durasi; masuk ke `M`: tiap −1 s → +3%, tiap +1 s → −3% (supaya Jam Rusak tetap sabotase). Contoh (dasar 20 s, nilai sudah di-clamp §1.1): 1× Jam Rusak (−5) → `M` 1,15; 2× Jam Rusak (−10) → 1,30, durasi tetap 20 s |
+| tolerance | `hitHalfWindowMs` ÷mult (min 60 ms) dan `iFrameMs` ×mult |
+| speed | masuk ke `M` (kecepatan ×mult, **interval spawn ÷mult**) |
+| extraTarget | nyawa −count (min 1); sisa count yang tidak terserap (nyawa sudah 1) menjadi durasi +5 s per count (di luar clamp §1.1). Contoh: hard +2 → nyawa 1, durasi 30 s; medium +2 → nyawa 1, durasi 25 s; easy +2 → nyawa 1, 20 s |
+| fog | `visibleDistanceM` ×0,6 (24 m): rintangan baru terlihat 40% lebih dekat |
+| hint | `hintLeadMs` = 500: bayangan baris muncul di jalan 0,5 s lebih awal (visual saja, tidak ubah aturan) |
+
+Di CP3b belum ada kartu, jadi `modifiers` selalu kosong; tabel modifier berlaku mulai CP4. Cek konsistensi: 1× Jam Rusak = `M` 1,15 cocok dengan kartu ("kecepatan +15%", [cards.md](cards.md)).
 
 ## 5. Whack-a-Mole (`whack_a_mole`) — 2D
 **Aturan 3 detik:** "Pukul yang muncul, jangan kucingnya!" (ikon: palu memukul karakter, kucing dicoret).

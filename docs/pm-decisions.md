@@ -12,3 +12,11 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | DR-06 win moment | The logic event (2nd win at the final region) decides the win. The walk animation is cosmetic; all input locks at that event. |
 | DR-38 | C-2 and C-3 are decided; docs updated to remove "to confirm". |
 | DR-39 | GDD milestones M1–M3 are replaced by CP3–CP6. |
+
+## CP3b decisions (PM, 2026-11-16)
+
+| Finding | Decision |
+|---|---|
+| DR-09 dead wait | Option B. Pillar 2 is reworded so the race view stays interactive during cooldown. Starting cooldowns change to **8/6/4 s** (easy/medium/hard); the order stays inverse, so R2 still holds. The engineer updates `COOLDOWN_MS` and its tests; gdd.md and map-indonesia §5 follow. |
+| Pick-result visibility | The rolled minigame stays hidden until Mulai is pressed, so switching target can't be used to re-roll. Accepted. |
+| Simon length | `targetLength` is 4/5/6 (easy/medium/hard) so a hard round fits in 30 s. Accepted. |

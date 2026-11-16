@@ -123,7 +123,18 @@ Sumber kebenaran: [checkpoints.md](checkpoints.md). (Milestone lama M1–M3 diha
 | D-018 | 2026-11-16 | Milestone M1–M3 diganti rencana checkpoint CP3a–CP6 (DR-39) | Pertahankan M1–M3 | Satu rencana, tanpa bentrok id requirement | GDD |
 
 ## Open questions
-Tidak ada open question terbuka di GDD. Semua keputusan CP2–CP3a tercatat di [Decisions](#decisions) dan [pm-decisions.md](pm-decisions.md). Temuan QA should-fix/nit yang belum dikerjakan (DR-08–DR-37, DR-40–DR-49 kecuali yang menyangkut Tap Tepat Waktu) dijadwalkan di CP3b/CP4/CP5/CP6 sesuai kolom CP di [qa/design-review.md](qa/design-review.md).
+Semua keputusan CP2–CP3a tercatat di [Decisions](#decisions) dan [pm-decisions.md](pm-decisions.md). Temuan QA should-fix/nit yang belum dikerjakan dijadwalkan di CP3b/CP4/CP5/CP6 sesuai kolom CP di [qa/design-review.md](qa/design-review.md). Di CP3b sudah dikerjakan untuk Simon dan Hindari Rintangan: DR-16, DR-17, DR-19, DR-20, DR-44, plus aturan undian pool 3 minigame (DR-02, [minigames.md §1.3](minigames.md#13-pemilihan-minigame-m2-dan-percobaan-ulang-dr-02)). Satu hal menunggu PM:
+
+### DR-09: cooldown vs pilar "tidak ada tunggu mati > 3 detik" (PM to confirm)
+**Masalah:** sebelum CP4 tidak ada kartu, jadi di cooldown 12 s (region easy) pemain hanya bisa memutar kamera dan mengganti target. Itu tunggu mati > 3 s dan bertentangan dengan Pillar 2. Cooldown (R2) sendiri tidak boleh dihapus, dan **semua** nilai ≥ 4 s melanggar kalimat "> 3 detik" secara harfiah (hard = 4 s), jadi hanya mengubah angka tidak cukup.
+
+| Opsi | Isi | Menjaga R2 | Dampak |
+|---|---|---|---|
+| A. Pilar diukur, angka tetap | Ubah Pillar 2 jadi terukur: "Saat cooldown, race view tetap interaktif (kamera, lihat lawan, ganti target, main kartu). Tidak ada layar yang memblokir semua input." Cooldown tetap 12/8/4 s | Ya (12/8/4) | Hanya teks dokumen. Tunggu 12 s di easy tetap ada, tapi tidak "mati". Playtest mengukur "waktu tanpa pilihan" |
+| B. A + rapatkan selisih cooldown | Opsi A, dan ubah titik awal cooldown jadi **8 / 6 / 4 s** (easy/medium/hard) | Ya (8 > 6 > 4, tetap berbanding terbalik) | Menyentuh angka R2 "starting point" (requirements), `COOLDOWN_MS` di kode dan test, dan estimasi durasi map-indonesia §5 (match sedikit lebih singkat bila ada gagal). Tunggu terpanjang 8 s |
+| C. A + latihan saat cooldown | Opsi A, dan saat cooldown pemain boleh memainkan **ronde latihan** minigame yang sama tanpa hadiah dan tanpa efek (Mulai tetap menunggu cooldown) | Ya | Fitur baru (UI + minigame jalan dua kali), terlalu besar untuk CP3b/CP4; kandidat CP6 atau pasca-MVP |
+
+**Rekomendasi: B.** Opsi A saja jujur tapi tidak mengurangi rasa menunggu 12 s di easy yang sering terjadi di CP3b; B memotong 4 s tunggu di easy tanpa melanggar R2, dan dari CP4 kartu (Kopi Tubruk, sabotase, Tiket) mengisi waktu itu. C disimpan sebagai ide. Tidak diterapkan sebelum PM konfirmasi.
 
 ### Risiko
 - (a) Minigame "aturan 3 detik" gagal dipahami: cek di playtest pertama (target 8/10 tester lulus percobaan pertama di easy).
@@ -132,4 +143,5 @@ Tidak ada open question terbuka di GDD. Semua keputusan CP2–CP3a tercatat di [
 ## Change log
 **0.1 (2026-11-16):** draft pertama MVP (GDD + 5 dokumen fitur).
 **0.2 (2026-11-16):** CP2: keputusan owner/PM dicatat (D-001, D-003–D-008), finish tanpa minigame, kartu Copet menggantikan Sinyal Hilang, konflik C-1/C-2/C-3 dicatat.
+**0.3.1 (2026-11-16):** CP3b: Open questions memuat DR-09 (3 opsi, PM to confirm; belum diterapkan); spec Simon + Hindari Rintangan dan aturan undian pool 3 di minigames.md v0.4.
 **0.3 (2026-11-16):** CP3a: DR-01–DR-07, DR-38, DR-39 dan C-1 diterapkan (D-009–D-018); milestone diganti rencana checkpoint.

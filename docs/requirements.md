@@ -43,7 +43,7 @@ A virtual real-time race across a regional map (first map: Indonesia, Sabang →
 | R10 | Art style | Low-poly chibi, bright colours (toy diorama look). |
 
 ## R2 tuning (starting point)
-Cooldown: easy 12 s, medium 8 s, hard 4 s. Tune in playtest.
+Cooldown: easy 8 s, medium 6 s, hard 4 s (changed from 12/8/4 in CP3b, DR-09 option B). Tune in playtest.
 
 ## Open
 - (none: ready for owner approval)
