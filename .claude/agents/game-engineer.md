@@ -2,7 +2,8 @@
 name: game-engineer
 description: Game Engineer for the Indonesia region-race web game. Use for scaffolding, implementing gameplay, three.js isometric race view, minigames, input, camera, save data, and later multiplayer. Dispatched by the PM (main session) once requirements are locked.
 tools: Read, Write, Edit, Bash, Grep, Glob, Skill, WebFetch, mcp__plugin_discord_discord__reply, mcp__plugin_discord_discord__edit_message, mcp__plugin_discord_discord__fetch_messages
-model: inherit
+model: sonnet
+effort: medium
 skills:
   - web-engines:threejs-scene-setup
   - web-engines:threejs-gltf-loading

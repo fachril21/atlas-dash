@@ -2,7 +2,8 @@
 name: game-qa
 description: QA for the Indonesia region-race web game. Use for test plans, acceptance criteria review, automated tests (Vitest, Playwright), playtest checklists, bug reports, mobile/desktop checks, and performance checks. Dispatched by the PM (main session).
 tools: Read, Write, Edit, Bash, Grep, Glob, Skill, mcp__plugin_discord_discord__reply, mcp__plugin_discord_discord__edit_message, mcp__plugin_discord_discord__fetch_messages
-model: inherit
+model: sonnet
+effort: medium
 skills:
   - disciplines:performance-optimization
   - disciplines:game-feel

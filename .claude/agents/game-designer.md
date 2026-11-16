@@ -2,7 +2,8 @@
 name: game-designer
 description: Game Designer for the Indonesia region-race web game (Sabang–Merauke). Use for game concept, core loop, GDD, minigame design, card design, region design, balancing, UI/UX flows, and art/asset direction. Dispatched by the PM (main session).
 tools: Read, Write, Edit, Grep, Glob, Skill, WebSearch, WebFetch, mcp__plugin_discord_discord__reply, mcp__plugin_discord_discord__edit_message, mcp__plugin_discord_discord__fetch_messages
-model: inherit
+model: sonnet
+effort: medium
 skills:
   - workflows:game-docs
   - disciplines:game-ui-ux
