@@ -1,6 +1,6 @@
 # Kartu — Spesifikasi MVP
 
-**Status:** designed · **Updated:** 2026-11-17 (v0.5, CP5a: koreksi hand maks 10, Gunung per target, kartu terbakar ke `discarded` pengirim, alasan redup §2.2.1 sesuai build, toleransi §8 #16, `autoCards` ditolak server; strategi bot pindah ke [bots.md](bots.md). v0.4, CP4b: DR-24, DR-27, DR-28, DR-29, DR-32, DR-33, DR-35 (bagian bot), DR-47; target picker, cap 2, urutan Cermin/Payung, Copet, bobot comeback, kriteria QA di §8) · Kembali ke [GDD](gdd.md) · Requirement: R3 (+ pengecualian Copet), R8, R9, K1, K1.1, K2, K3, Q2, Q4
+**Status:** designed · **Version:** 0.6 · **Updated:** 2026-11-17 (v0.6, CP5b: §5 memetakan 6 jenis modifier ke Whack-a-Mole, Ketapel, Cocokkan Kartu, Tebak Lokasi; teks Jam Pasir/Jam Rusak/Zona Lebar disesuaikan. v0.5, CP5a: koreksi hand maks 10, Gunung per target, kartu terbakar ke `discarded` pengirim, alasan redup §2.2.1 sesuai build, toleransi §8 #16, `autoCards` ditolak server; strategi bot pindah ke [bots.md](bots.md). v0.4, CP4b: DR-24, DR-27, DR-28, DR-29, DR-32, DR-33, DR-35 (bagian bot), DR-47; target picker, cap 2, urutan Cermin/Payung, Copet, bobot comeback, kriteria QA di §8) · Kembali ke [GDD](gdd.md) · Requirement: R3 (+ pengecualian Copet), R8, R9, K1, K1.1, K2, K3, Q2, Q4
 
 20 kartu (K3): 11 boost, 9 sabotase. Kartu adalah **data**; satu interpreter efek menjalankan daftar `ops` (lihat §4). Tabel §2 adalah sumber kebenaran angka; `cards.json` di kode dibuat dari tabel ini.
 
@@ -44,12 +44,12 @@ Kolom: **Base** = termasuk 8 kartu base (5 boost, 3 sabotase; K3). **Target**: `
 
 | id | Nama | Rarity | Base | Target | Durasi | Syarat | Fase | Efek | maxStacks |
 |---|---|---|---|---|---|---|---|---|---|
-| `jam_pasir` | Jam Pasir | common | ✓ | self | next_minigame | — | a | Waktu +5 s. Di Hindari Rintangan durasi tetap, tempo −15% (lihat §5) | 2 |
+| `jam_pasir` | Jam Pasir | common | ✓ | self | next_minigame | — | a | Waktu +5 s. Di Hindari Rintangan dan Whack-a-Mole durasi tetap, tempo −15% (lihat §5) | 2 |
 | `santai_dulu` | Santai Dulu | rare | ✓ | self | next_minigame | — | a | Difficulty −1 tingkat (hard→medium, medium→easy). Reward kartu & cooldown ikut difficulty efektif. Sudah easy = tanpa efek, kartu habis (DR-30, §2.1) | 1 |
 | `nyawa_cadangan` | Nyawa Cadangan | common | ✓ | self | next_minigame | onFail | a | Bila kamu **gagal** di minigame berikutnya: tanpa cooldown; tombol Mulai langsung aktif (ulang tetap butuh tekan Mulai, DR-05; percobaan ulang mengambil snapshot pending baru, DR-48). Bila menang: kartu habis tanpa efek | 1 |
 | `teropong` | Teropong | common | ✓ | self | next_minigame | — | a | Aktifkan `hint` (bantuan khusus tiap minigame, lihat [minigames.md](minigames.md) dan §5) | 1 |
 | `payung_tameng` | Payung Tameng | rare | ✓ | self | next_sabotage | — | b | Menangkal 1 sabotase berikutnya yang mengarah ke kamu, termasuk Copet (kartu sabotase hangus, Payung habis; §2.2.3) | 1 (defensif: maks 1 kartu defensif aktif; redup bila Cermin aktif) |
-| `zona_lebar` | Zona Lebar | common | | self | next_minigame | — | a | `tolerance` ×1,3 (zona/hitbox/jeda idle lebih longgar; arti per minigame di §5) | 1 |
+| `zona_lebar` | Zona Lebar | common | | self | next_minigame | — | a | `tolerance` ×1,3 (zona/hitbox/jeda idle/waktu tampil/radius tabrak/preview/waktu per soal lebih longgar; arti per minigame di §5) | 1 |
 | `kopi_tubruk` | Kopi Tubruk | common | | self | instant | — | a | Hapus sisa cooldown sekarang. Hanya bisa dimainkan saat cooldown | — |
 | `oleh_oleh` | Oleh-oleh | common | | self | next_minigame | onWin | a | Bila kamu **menang** di minigame berikutnya: pilih +1 kartu (maks 5 dari 5). Bila gagal: habis tanpa efek. Di region FINAL tidak ada penawaran (C-3), jadi tanpa efek (peringatan di detail, §2.1) | 1 |
 | `ojek_kilat` | Ojek Kilat | rare | | self | next_minigame | onWin | a | Bila kamu **menang** di minigame berikutnya, dihitung 2 win (1 penawaran kartu saja, N sesuai difficulty). Bila gagal: habis tanpa efek | 1 |
@@ -60,7 +60,7 @@ Kolom: **Base** = termasuk 8 kartu base (5 boost, 3 sabotase; K3). **Target**: `
 
 | id | Nama | Rarity | Base | Target | Durasi | Syarat | Efek | maxStacks |
 |---|---|---|---|---|---|---|---|---|
-| `jam_rusak` | Jam Rusak | common | ✓ | opponent | next_minigame | — | Waktu −5 s. Di Hindari Rintangan durasi tetap, tempo `M` ×1,15 (kecepatan ×1,15 dan jeda antar baris ÷1,15, [minigames.md §4](minigames.md#4-hindari-rintangan-dodge_runner--3d)) | 2 |
+| `jam_rusak` | Jam Rusak | common | ✓ | opponent | next_minigame | — | Waktu −5 s. Di Hindari Rintangan durasi tetap, tempo `M` ×1,15 (kecepatan ×1,15 dan jeda antar baris ÷1,15, [minigames.md §4](minigames.md#4-hindari-rintangan-dodge_runner--3d)); di Whack-a-Mole durasi tetap, waktu tampil karakter ÷1,15 ([§5](minigames.md#5-whack-a-mole-whack_a_mole--2d)) | 2 |
 | `badai` | Badai | rare | ✓ | opponent | next_minigame | — | Difficulty +1 tingkat | 1 |
 | `kabut_asap` | Kabut Asap | common | ✓ | opponent | next_minigame | — | Aktifkan `fog` | 1 |
 | `macet_total` | Macet Total | common | | opponent | next_minigame | onFail | Bila target **gagal** di percobaan berikutnya: cooldown +6 s. Bila menang: habis tanpa efek dan slot dilepas | 1 |
@@ -294,9 +294,9 @@ Nama dan deskripsi lewat string key (`card.jam_pasir.name`) supaya bisa dilokalk
 
 **Invarian yang perlu dites:** tiap instance kartu punya id unik dan ada di tepat satu zona (`offer`, `hand`, `limbo`, `pending`, `discarded`; kartu snapshot tetap di `pending` sampai percobaan selesai, lalu `discarded`); hand ≤ 5 setiap kali layar buang ditutup; seed sama → penawaran sama; penawaran tak punya id kembar dan berukuran min(5, |pool|); kartu bersyarat selalu habis setelah 1 percobaan; Copet memindahkan instance tanpa menduplikasi (CP4b); Gunung Meletus membuat tepat (target − 1) instance baru (§2.2.2).
 
-## 5. Pemetaan boost ke minigame yang sudah dibangun (CP4a)
+## 5. Pemetaan kartu ke minigame (CP4a, CP5b)
 
-Tiga minigame di registry: Tap Tepat Waktu (TT), Simon (SM), Hindari Rintangan (HR). Sumber arti modifier: [minigames.md](minigames.md) §2–§4. Semua kartu boost fase `a` terpetakan; tidak ada celah.
+Tabel pertama (CP4a): Tap Tepat Waktu (TT), Simon (SM), Hindari Rintangan (HR). Tabel kedua (CP5b): Whack-a-Mole (WM), Ketapel (KT), Cocokkan Kartu (CK), Tebak Lokasi (TL). Sumber arti modifier: [minigames.md](minigames.md) §2–§8. Semua 7 minigame memetakan keenam jenis modifier; tidak ada celah.
 
 | Kartu | Lewat | Tap Tepat Waktu | Simon | Hindari Rintangan |
 |---|---|---|---|---|
@@ -316,7 +316,30 @@ Catatan:
 - **Zona Lebar di Simon hard:** `mistakesAllowed` 0→1 mengubah hard sangat longgar. Dipantau di playtest; tuas: pakai `idleTimeoutMs` saja tanpa +1 mistake (ubah di minigames.md, bukan di kartu).
 - Jam Pasir ×2 di Simon = 40 s (batas atas clamp, lolos).
 
-**Minigame yang belum dibangun (CP5) dan aturan cadangan:** semua 7 minigame MVP sudah punya definisi 6 modifier di [minigames.md §2–§8](minigames.md#2-tap-tepat-waktu-tap_timing--2d), jadi tidak ada hint tanpa definisi. Minigame yang belum dibangun tidak ada di registry dan tak pernah diundi, sehingga kartu tidak bisa terbuang di sana. Aturan agar celah tidak muncul nanti: sebuah minigame **tidak boleh masuk registry** sebelum tabel modifiernya memetakan keenam jenis (`timeDelta`, `tolerance`, `speed`, `extraTarget`, `fog`, `hint`). Bila tetap ada modifier tak dikenal (bug data), ia diabaikan dengan log warning ([minigames.md §1.2](minigames.md#12-interface-typescript-dibangun-engineer)) dan kartu tetap habis (aturan tunggal §1.1).
+### 5.1 Empat minigame CP5b
+
+Kolom = arti efek pada minigame itu (angka dasar difficulty ada di minigames.md). Baris sabotase (Jam Rusak, Ngebut, Tambah Beban, Kabut Asap) memakai jenis modifier yang sama dengan boost kembarannya, dengan tanda berlawanan; Badai/Santai Dulu/Gunung memakai `difficultyShift` (race layer).
+
+| Kartu | Lewat | Whack-a-Mole (WM) | Ketapel (KT) | Cocokkan Kartu (CK) | Tebak Lokasi (TL) |
+|---|---|---|---|---|---|
+| Jam Pasir (+5 s) | `timeDelta` | durasi **tetap** 20 s; waktu tampil ×1,18 (`M` 0,85) | durasi 30→35 s | durasi main 30→35 s (preview tidak ikut) | waktu per soal +5÷soal (medium 6→7,25 s) |
+| Jam Rusak (−5 s) | `timeDelta` | durasi tetap; waktu tampil ÷1,15 (`M` 1,15) | 30→25 s | 30→25 s | waktu per soal −5÷soal (medium 6→4,75 s, min 3 s) |
+| Zona Lebar (×1,3) | `tolerance` | waktu tampil ×1,3 (maks ×1,5) + area sentuh lubang melebar | radius tabrak ×1,3 (medium 1,1→1,43 m, maks 2,2) | preview +1 s (hard 0→1 s) | waktu per soal ×1,3 (maks 10 s) |
+| Ngebut (×1,25) | `speed` | waktu tampil ÷1,25 (jeda spawn tetap) | target bergerak dan angin ×1,25; durasi 30→24 s (min 15 s) | jeda salah ÷1,25 (800→640 ms), putar ÷1,25, preview ÷1,25 | waktu per soal ÷1,25 (min 3 s) |
+| Tambah Beban (+1) | `extraTarget` | hits +2, durasi +3 s | target +1, harus jatuh +1, peluru +1, durasi +4 s | +1 pasangan, durasi +2 s | soal +1, benar +1 |
+| Kabut Asap | `fog` | 2 lubang berkabut tiap 3 s (tetap bisa dipukul) | target ≥ 20 m 50% transparan | wajah terbuka 60% kontras + blur | gambar blur 6 px memudar 2 s per soal |
+| Teropong | `hint` | lubang bergetar 0,3 s sebelum karakter muncul | garis bidik 100% + hijau saat mengenai | tombol "Intip" 1 s (sekali) | hapus 1 pilihan salah per soal |
+| Santai Dulu / Badai / Gunung | `difficultyShift` | race layer | race layer | race layer | race layer |
+| Nyawa Cadangan, Kopi Tubruk, Oleh-oleh, Ojek Kilat, Macet Total, Pelit Hadiah, Tiket Pesawat | race layer | — | — | — | — |
+
+Catatan:
+- **Jam Pasir/Jam Rusak di Whack-a-Mole** tidak mengubah durasi; badge intro "⏳ tempo −15%" / "+15%" seperti Hindari Rintangan (ui-flow §8). Alasannya: jadwal spawn tetap menjamin target mungkin tercapai (minigames.md §5).
+- **Zona Lebar di Cocokkan Kartu hard** memberi preview 1 s pada minigame yang dasarnya 0 s: boost besar, dipantau di playtest (tuas: batasi bonus preview ke maks +2 s).
+- **Ngebut di Ketapel easy** (tanpa angin dan tanpa target bergerak) tetap bermakna lewat durasi 24 s; **Ngebut di Whack easy** memperpendek waktu tampil 1100→880 ms.
+- **Tambah Beban di Ketapel hard** (+2): 8 target, 7 harus jatuh, 8 peluru, 38 s; ketat tapi rasio (88%) mirip dasar (83%).
+- **Hint di Tebak Lokasi easy**: 3 pilihan jadi 2 (peluang tebak 50%); sengaja, kartu common.
+
+**Aturan cadangan (agar celah tidak muncul):** semua 7 minigame MVP sudah punya definisi 6 modifier di [minigames.md §2–§8](minigames.md#2-tap-tepat-waktu-tap_timing--2d), jadi tidak ada hint tanpa definisi. Minigame yang belum dibangun tidak ada di registry dan tak pernah diundi, sehingga kartu tidak bisa terbuang di sana. Aturan agar celah tidak muncul nanti: sebuah minigame **tidak boleh masuk registry** sebelum tabel modifiernya memetakan keenam jenis (`timeDelta`, `tolerance`, `speed`, `extraTarget`, `fog`, `hint`). Bila tetap ada modifier tak dikenal (bug data), ia diabaikan dengan log warning ([minigames.md §1.2](minigames.md#12-interface-typescript-dibangun-engineer)) dan kartu tetap habis (aturan tunggal §1.1).
 
 ## 6. Keputusan
 ### CP2

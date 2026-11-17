@@ -89,3 +89,14 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | QA-CP5a-01 Tab leaves the Setup screen | Deferred to CP6 polish, together with QA-CP4b-01/02/03. |
 | bots.md / ui-flow sync (chooseCards, routeMistake wording, pending-sabotage observation, Copet order, paces, reference-human `afterWinMs`, new gates, Setup screen contents) | The Designer does this at the start of CP5b. |
 | Reference-human `afterWinMs` (casual 36–50 s) | Model assumption only. C-1 must be validated with real players in the CP6 playtest. |
+
+## CP5b decisions (PM, 2026-11-17)
+
+| Topic | Decision |
+|---|---|
+| ★1 Hard gate risk with a 7-minigame pool | Accepted. If G2/G3 break, tune in the §10 F #16 order: Hard pace, then `afterWinMs`, then the human side. Never change pass chance. |
+| ★2 Tebak Lokasi cross-attempt variety (`seenPlaceIds`) | Not now. Revisit after the CP6 playtest. |
+| ★3 Jam Pasir/Jam Rusak in Whack-a-Mole change tempo, not duration | Accepted. |
+| ★4 Zona Lebar preview on Cocokkan Kartu hard | Accepted. Watch it in the playtest; the lever is to cap the bonus preview at +2 s. |
+| ★5/★6 Ketapel `hitRadiusM`, hand-estimated pass rates | Accepted as provisional. QA checks the perfect- and idle-player bounds; the real feel is checked in the CP6 playtest. |
+| New props and icons (menara balok, atap genteng, pohon kelapa, landmark icons) | The Engineer builds them as procedural low-poly / simple SVG placeholders. Final art is in CP6. |

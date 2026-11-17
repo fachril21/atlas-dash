@@ -1,6 +1,6 @@
 # UI Flow + HUD
 
-**Status:** designed · **Updated:** 2026-11-17 (v0.3.1, CP5a: hand maks Buang = 10 di §6; v0.3, CP4b: target picker §7, pause di layar kartu, visibilitas slot DR-33, DR-27) · Kembali ke [GDD](gdd.md) · Requirement: K1, K1.1, K2, R2, R9
+**Status:** designed · **Version:** 0.3.2 · **Updated:** 2026-11-17 (v0.3.2, CP5b: §2 Setup disamakan dengan build (jumlah bot + level saja; nama, warna, preset ditandai nanti), badge tempo untuk Whack-a-Mole di §8; v0.3.1, CP5a: hand maks Buang = 10 di §6; v0.3, CP4b: target picker §7, pause di layar kartu, visibilitas slot DR-33, DR-27) · Kembali ke [GDD](gdd.md) · Requirement: K1, K1.1, K2, R2, R9
 
 ## 1. Prinsip
 - **Screen stack:** layar penuh di-*replace* (Menu → Setup → Race → Hasil); overlay di-*push* di atas Race (Minigame, Kartu, Buang, Target picker, Pause) dan di-*pop* saat selesai. Hanya layar teratas menerima input, **kecuali tombol Pause**: tombol Pause selalu di atas modal apa pun (Penawaran, Buang, Detail, Target Picker) dan bisa ditekan; pause membekukan semua timer game termasuk timer 15 s layar kartu (keputusan PM, QA-CP4a-03).
@@ -27,7 +27,7 @@ Splash/Loading ─▶ Menu Utama ─▶ Setup Bot ─▶ Race ──────
 | Menu Utama | Judul "Atlas Dash: Indonesia", diorama berputar pelan di latar | **Main** | — |
 | Pilih Peta | Kartu peta: Indonesia (aktif), Japan (terkunci "Segera") | Indonesia | Menu |
 | Pengaturan | Volume musik/SFX, getar, kekuatan shake 0–100%, kurangi gerak, kurangi kilat, bahasa | — | tutup |
-| Setup Bot | Nama + warna pion (4 warna), jumlah bot 1–3 (stepper), level bot Easy/Normal/Hard (segmented), preset (Standard aktif; Short/Long terkunci) | **Mulai Balapan** | Menu |
+| Setup Bot | **Dibangun (CP5a):** jumlah bot 1–3 (stepper − / +, ≥ 44 px) dan level bot Easy/Normal/Hard (segmented, satu level untuk semua bot), tombol **Mulai Balapan** (fokus awal). URL `?bots=` dan `?botLevel=` hanya memilih nilai awal; bila keduanya ada, layar dilewati (tes, tautan). **Ditunda (belum dibangun, bukan bagian CP5/CP6 kecuali PM menarik):** nama + warna pion (4 warna) dan pilihan preset (Standard aktif; Short/Long terkunci); sementara itu pemain selalu memakai nama/warna default dan preset Standard | **Mulai Balapan** | Menu |
 | Race | Lihat §3 | Mulai (bila target dipilih) | Pause |
 | Minigame | Intro 3 s, area main, timer bar, banner hasil | — (input minigame) | Pause (solo) |
 | Penawaran Kartu | 5 kartu, "Pilih N" | Kartu pertama | tidak bisa (wajib pilih N) |
@@ -126,7 +126,7 @@ Aturan validitas target (satu-satunya definisi): [cards.md §2.2.1](cards.md#221
 
 ## 8. Minigame overlay
 - Dibuka dengan transisi zoom ke region target 0,4 s → layar minigame.
-- **Intro:** kalimat aturan besar di tengah, animasi ikon, 3-2-1. Badge difficulty + ikon modifier aktif (mis. ⚡ Kabut, ⏳ +5 s) di bawah kalimat agar pemain tahu kenapa terasa beda. Di Hindari Rintangan, `timeDelta` tidak mengubah durasi, jadi badge-nya "⏳ tempo −15%" (Jam Pasir) / "⏳ tempo +15%" (Jam Rusak), bukan "+5 s" ([cards.md §5](cards.md#5-pemetaan-boost-ke-minigame-yang-sudah-dibangun-cp4a)).
+- **Intro:** kalimat aturan besar di tengah, animasi ikon, 3-2-1. Badge difficulty + ikon modifier aktif (mis. ⚡ Kabut, ⏳ +5 s) di bawah kalimat agar pemain tahu kenapa terasa beda. Di Hindari Rintangan dan Whack-a-Mole, `timeDelta` tidak mengubah durasi, jadi badge-nya "⏳ tempo −15%" (Jam Pasir) / "⏳ tempo +15%" (Jam Rusak), bukan "+5 s"; di Tebak Lokasi badge "⏳ waktu per soal +1,3 s" (nilai nyata dibulatkan 0,1 s); di Ketapel/Cocokkan Kartu "⏳ ±N s" biasa ([cards.md §5](cards.md#5-pemetaan-boost-ke-minigame-yang-sudah-dibangun-cp4a)).
 - **Saat main:** timer bar penuh-lebar di atas (di dalam safe area), indikator progres syarat lulus di kiri atas ("2/3"), tombol pause di kanan atas (solo saja). Tidak ada HUD race lain.
 - 2D: overlay HTML penuh layar dengan latar diorama di-blur. 3D: scene sendiri.
 - **Banner hasil** 1,2 s → BERHASIL → Penawaran Kartu; GAGAL → kembali ke Race dengan cooldown berjalan (Nyawa Cadangan: tanpa cooldown, tombol Mulai langsung aktif; tetap harus ditekan).

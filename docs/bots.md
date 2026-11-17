@@ -1,8 +1,8 @@
-# Bot Pintar — Spesifikasi (CP5a)
+# Bot Pintar — Spesifikasi (CP5a, disinkronkan dengan build)
 
-**Status:** designed · **Version:** 0.1 · **Updated:** 2026-11-17 · Kembali ke [GDD](gdd.md) · Requirement: B1, B2, B3, R2, R6.1, R8, Q2, C-1 · Menyelesaikan DR-32, DR-34, DR-35, DR-36, DR-37
+**Status:** designed · **Version:** 0.2 · **Updated:** 2026-11-17 (v0.2, CP5b: disinkronkan dengan build CP5a dan keputusan PM; aksi `chooseCards`, `routeMistake` di antara tetangga bukan terbaik, observasi memuat jenis sabotase pending lawan, Copet setelah Badai, pace Normal 840 s / Hard 610 s, `afterWinMs` manusia referensi baru, gerbang baru C-1 / Hard, catatan luapan; data bot per minigame baru) · Kembali ke [GDD](gdd.md) · Requirement: B1, B2, B3, R2, R6.1, R8, Q2, C-1 · Menyelesaikan DR-32, DR-34, DR-35, DR-36, DR-37
 
-Semua angka adalah titik awal. Angka bertanda "analitis" dihitung dengan tangan dari rumus §10, bukan disimulasikan: QA/Engineer menyetel `afterWinMs` dan `paceTargetMs` (§8) sampai band §10 terpenuhi. Pass chance dasar per level **tidak berubah** dari yang sudah dibangun (`BOT_PASS_CHANCE`).
+Semua angka adalah titik awal. Angka bertanda "analitis" dihitung dengan tangan dari rumus §10, bukan disimulasikan. Nilai yang **sudah disetel di build CP5a** (QA simulasi, diterima PM) ada di §8–§10 dan di `src/logic/botProfiles.ts`; kode menang bila ada selisih. Pass chance dasar per level **tidak berubah** dari yang sudah dibangun (`BOT_PASS_CHANCE`).
 
 ## 1. Prinsip
 1. **Bot memainkan aturan yang sama dengan manusia** (B2): aksi lewat `GameAction` yang sama, memakai validator yang sama dengan UI (`canStartAttempt`, `selectableTargets`, playability kartu, target valid cards.md §2.2.1). Nol aksi ditolak reducer (`actionRejected`) dari bot.
@@ -16,9 +16,11 @@ Bot hanya melihat apa yang dilihat pemain manusia di layar.
 | Boleh | Tidak boleh |
 |---|---|
 | State sendiri penuh: hand, pending, kartu pertahanan sendiri, cooldown, `targetId`, `winsAtTarget`, kartu sedang dipakai | `nextMinigameId` sendiri sebelum **Mulai** (disembunyikan dari manusia; mencegah "mengocok" lewat ganti target) |
-| Tiap lawan: `nodeId`, `remainingWins`, status (main / cooldown / jalan), **jumlah** kartu di hand, **jumlah** slot sabotase terisi (0–2) | Isi hand lawan, `pending` boost lawan, Payung/Cermin aktif lawan, nama kartu sabotase milik pihak lain |
+| Tiap lawan: `nodeId`, `remainingWins`, status (main / cooldown / jalan), **jumlah** kartu di hand, **jumlah** slot sabotase terisi (0–2), dan **jenis (id) kartu sabotase pending** yang memegang slot lawan, **hanya dibaca validator** (lihat catatan di bawah tabel) | Isi hand lawan, `pending` boost lawan, Payung/Cermin aktif lawan, pengirim atau urutan kartu sabotase pending |
 | `targetId` lawan **tidak** dipakai (picker tidak menampilkannya) | State stream RNG siapa pun (`pickRng`, `cardsRng`, `copetRng`, seed percobaan), hasil percobaan lawan yang belum selesai, isi penawaran lawan |
 | Validitas target lewat fungsi validator (label "Sudah kena kartu ini" memang kebocoran yang disengaja, cards.md §1) | `matchSeed` untuk meramal apa pun |
+
+**Catatan jenis sabotase pending (build CP5a, diterima PM):** observasi (`botObservation.ts`) membawa `{ uid, defId, seq }` untuk kartu sabotase pending lawan karena validator target valid butuh "Sudah kena kartu ini" (kebocoran yang disengaja, [cards.md §1](cards.md)). Keputusan bot hanya memakai `sabotageSlotsUsed` dan hasil validator, tidak pernah membaca `defId` itu langsung (dijaga scan sumber dan probe QA: 2.859 jenis kartu ditukar, 3.660 keputusan identik). Manusia hanya melihat label itu untuk kartu yang sedang ia pegang; bot punya daftar penuh lewat validator.
 
 Tes metamorfik wajib (§11 #6): ubah semua kolom "Tidak boleh" pada salinan state, aksi bot harus identik.
 
@@ -26,8 +28,8 @@ Tes metamorfik wajib (§11 #6): ubah semua kolom "Tidak boleh" pada salinan stat
 Bot tidak memainkan minigame; hasilnya diundi saat percobaan mulai dari stream `bot` (dua tarikan **tetap** per percobaan: `chance` lalu `range`, supaya tes lama tetap stabil).
 
 1. **Peluang lulus** `p = clamp(BOT_PASS_CHANCE[level][difficulty efektif] + 8 poin × tiap jenis modifier setelah netting, 5%, 98%)`. Sudah dibangun (`botPassChance`); tabel jenis +/− di [cards.md §3.2.1](cards.md#321-bot-di-cp4b-dr-32). Kartu non-minigame (Ojek, Nyawa, Macet, Pelit) tidak mengubah `p`.
-2. **Durasi efektif `D`** = `level.durationMs` dari `generateLevel` (sudah memuat `timeDelta` ter-clamp dan `extraTarget`).
-3. **Waktu main:** lulus → `D × U(passTimeFrac[level])`; **kecuali minigame tipe bertahan (`dodge_runner`): lulus = 100% `D`** (survive sampai habis). Gagal → `D × U(0.4, 1.0)`. `timeTakenMs` = nilai itu.
+2. **Durasi efektif `D`** = `level.durationMs + (level.previewMs ?? 0)` dari `generateLevel` (sudah memuat `timeDelta` ter-clamp, `speed`, dan `extraTarget`; `previewMs` hanya ada di Cocokkan Kartu). Durasi dasar per minigame dan efek pool 7: [minigames.md §9](minigames.md#9-ringkasan). Peluang lulus **sama untuk semua minigame** (tidak ada peluang per minigame).
+3. **Waktu main:** lulus → `D × U(passTimeFrac[level])`; **kecuali minigame tipe bertahan (`dodge_runner`, satu-satunya, `SURVIVAL_MINIGAMES`): lulus = 100% `D`** (survive sampai habis). Gagal → `D × U(0.4, 1.0)`. `timeTakenMs` = nilai itu.
 4. **Hasil dikirim** pada `startedAtMs + introMs + timeTakenMs + RESULT_BANNER_MS` (sudah dibangun). Pause membekukan karena memakai jam game.
 5. Cooldown, N kartu, efek `onWin/onFail` dihitung reducer seperti pemain.
 
@@ -45,8 +47,10 @@ Pass chance tabel + jeda manusiawi membuat Normal/Hard lebih cepat dari pemain k
 > Bot **menunda menekan Mulai** bila **(a) memimpin** (`remainingWins` ≤ `remainingWins` semua pemain lain; seri = memimpin) **dan (b) di depan jadwal**: `timeMs < paceTargetMs × (total − remainingWins) / total − paceSlackMs`, dengan `total` = `remainingWins` di start (Indonesia: 8). Cek ulang tiap 1 s.
 
 - Bot yang **tertinggal** tidak direm: ia berjalan dengan kecepatan alami. Bot tidak pernah dipercepat; bot yang sial gagal berkali-kali jadi lebih lambat dari jadwal.
-- Efek: bot terdepan melambat ke jadwal `paceTargetMs`; pengejar bebas. Batas bawah waktu selesai bot ≈ `paceTargetMs × (total−1)/total` + 1 percobaan ≈ **10,9 menit** (Hard), **11,7** (Normal), 13,0 (Easy).
-- Rem hanya untuk bot, tidak untuk "manusia referensi" (§9). Pemain manusia cepat tetap bisa menang lebih awal dari 10 menit: C-1 berlaku untuk **median pemain kasual**.
+- Efek: bot terdepan melambat ke jadwal `paceTargetMs`; pengejar bebas. Batas bawah waktu selesai bot ≈ `paceTargetMs × (total−1)/total` + 1 percobaan (± 0,8 mnt) ≈ **9,7 menit** (Hard, pace 610 s; terukur p95 vs 1 Hard = 9,7), **13,0** (Normal, pace 840 s), 13,5 (Easy, pace 870 s). Karena itu Hard bisa mengakhiri match jauh lebih awal dari Normal/Easy.
+- Rem hanya untuk bot, tidak untuk "manusia referensi" (§9). Pemain manusia cepat tetap bisa menang lebih awal dari 10 menit: C-1 berlaku untuk **median pemain kasual melawan bot Easy dan Normal saja** (§10); melawan Hard median target [7, 9] menit (keputusan PM, §10).
+- Dengan pace Hard 610 s, jendela yang memenuhi semua gerbang Hard sekitar **600–620 s** (di bawah ≈ 600: casual vs 1 Hard < 15%; di atas ≈ 620: median vs 1 Hard > 9,0 dan casual vs 3 Hard mendekati 12%). Perubahan kecil di cooldown, durasi minigame, atau `afterWinMs` manusia menggeser jendela ini.
+- Race view harus menampilkan bot yang menahan diri sebagai "berpikir/menahan diri", bukan beku (keputusan PM; sudah dibangun: gelembung di pion + label).
 - Mematikan rem: `paceTargetMs = Infinity`. Bot tidak boleh tertahan tanpa batas (jadwal selalu maju).
 
 ## 5. Pilih rute (DR-36)
@@ -55,8 +59,10 @@ Kapan: bot di race view, `targetId = null`, jeda `thinkMs`/`afterWinMs` selesai.
 | Level | Aturan | Seri |
 |---|---|---|
 | Easy | Acak seragam di antara `selectableTargets` | — |
-| Normal | Dengan peluang `routeMistake` (15%) acak seragam seperti Easy. Selain itu: tetangga dengan `playDist(target)` terkecil (rute terpendek) | Difficulty dasar region lebih rendah; masih seri → acak (`botMind`) |
-| Hard | Tetangga dengan `cost(t)` terkecil (di bawah) | `cost` selisih < 1 s → difficulty dasar lebih rendah; masih seri → acak |
+| Normal | Tetangga terbaik = `playDist(target)` terkecil (rute terpendek). Dengan peluang `routeMistake` (15%) bot memilih **acak seragam di antara tetangga selain yang terbaik**; bila tidak ada tetangga lain (satu opsi), tetap yang terbaik. Satu tarikan `chance` per keputusan, apa pun petanya | Difficulty dasar region lebih rendah; masih seri → acak (`botMind`) |
+| Hard | Tetangga dengan `cost(t)` terkecil (di bawah); `routeMistake` 0 | `cost` selisih < 1 s (`ROUTE_COST_TIE_MS`) → difficulty dasar lebih rendah; masih seri → acak |
+
+**Kenapa "bukan terbaik" (QA CP5a, diterima PM):** bila "acak seragam seperti Easy" dibaca termasuk tetangga terbaik, peluang salah efektif hanya 15% × (1 − 1/k) = 7,5% untuk k = 2, dan gerbang "terpendek 85% ± 3" (§11 #7) gagal. Dengan pembacaan ini hasilnya tepat 85%.
 
 **`cost` (Hard)**, DP atas DAG peta, tanpa acak:
 `cost(t) = W × E_win(d_t) − kartu(t) × cardValueMs + best(t)`, `W` = `winsRequired`, `best(t)` = `min cost` tetangga `t` ke finish (`best(region final) = 0`).
@@ -71,7 +77,7 @@ Kapan: bot di race view, `targetId = null`, jeda `thinkMs`/`afterWinMs` selesai.
 Di peta Indonesia Normal dan Hard akan hampir selalu lewat Medan → Jakarta → Toraja → Labuan Bajo (rute C: terpendek dan tengah risiko). Itu benar menurut data; perilaku Easy (acak) dan kebenaran logika Normal/Hard diuji di **peta sintetis** (§11 #7).
 
 ## 6. Penawaran dan buang (DR-32)
-Bot menjawab layar penawaran/buang pada poll pertama setelah layar terbuka (tanpa timer 15 s, tanpa jeda berpikir). Pemilihan lewat satu aksi atomik; hasil harus identik untuk state sama.
+Bot menjawab layar penawaran/buang pada poll pertama setelah layar terbuka (tanpa timer 15 s, tanpa jeda berpikir). Pemilihan lewat **satu aksi atomik `chooseCards { playerId, cardUids[] }`** (nama final di build; pengganti `pickCards`/`discardCards` pada rancangan awal): di layar penawaran `cardUids` = tepat N kartu yang diambil; di layar buang = tepat sejumlah kartu yang harus dibuang. Penandaan (mark) diabaikan; aksi dengan jumlah salah, uid ganda, uid asing, atau tanpa layar terbuka ditolak (`actionRejected`). Hasil harus identik untuk state sama. Invarian layar: "layar bot terbuka ≤ 1 poll". **Server nanti harus memvalidasi `chooseCards` per pengirim** (melewati timer 15 s dan penandaan), seperti `autoCards` dan `debug*` (keputusan PM).
 
 | Level | Pilih N dari 5 | Buang saat hand > 5 |
 |---|---|---|
@@ -98,13 +104,14 @@ Evaluasi dilakukan tiap `tickMs`. Urutan prioritas per evaluasi (Normal/Hard); k
 | 6 | Boost percobaan: `santai_dulu`, `nyawa_cadangan`, `teropong`, `zona_lebar`, `jam_pasir` (urutan itu) | Target terpilih dan `p_next ≤ boostMaxPass` (Normal 0,80; Hard 0,70). `p_next` = `botPassChance` dengan difficulty dasar target dan semua pending `next_minigame` bot. `santai_dulu` juga butuh difficulty efektif ≥ medium. Akibatnya Hard menyimpan boost untuk region hard atau saat sedang disabotase |
 | 7 | Sabotase | Lihat §7.2 |
 
-**Aturan luapan:** bila hand ≥ 4 dan tidak ada kartu lolos syarat di atas, bot memainkan kartu playable bernilai `BOT_CARD_VALUE` terendah (target seperti §7.2). Mencegah kartu terbuang di penawaran berikutnya.
+**Aturan luapan:** bila hand ≥ `overflowHand` (4, Normal/Hard) dan tidak ada kartu lolos syarat di atas, bot memainkan kartu playable bernilai `BOT_CARD_VALUE` terendah (seri: paling lama di hand; target seperti §7.2). Mencegah kartu terbuang di penawaran berikutnya.
+- **Catatan terukur (QA CP5a, diterima PM "biarkan"):** 120 match: Normal memainkan 0,9% kartunya lewat luapan, **Hard 10,0%** (teropong 40, zona lebar 40, nyawa cadangan 26, jam pasir 18 dari 131 kartu luapan; Kopi Tubruk boros 0). Jadi yang "terbuang" hanya boost kecil di region mudah; alternatifnya kartu itu dibuang di layar buang berikutnya. Konsekuensi: kalimat "Hard menyimpan boost untuk region hard" (#6) hanya benar sebagian di praktik. Tuas bila PM ingin Hard lebih hemat: `overflowHand` Hard 4 → 5.
 
 ### 7.1 Easy
 Tiap evaluasi, dengan peluang `cardPlayChance` (30%): pilih **acak seragam** satu kartu playable (boost, sabotase, atau pertahanan; tanpa cek relevansi) dan, bila sabotase, target valid acak. "Kesempatan" (DR-37) = satu evaluasi `tickMs` (3–4 s) di race view dengan ≥ 1 kartu playable. Maks 1 kartu per 8 s.
 
 ### 7.2 Sabotase dan target
-Syarat umum Normal/Hard: ≥ 1 target valid. Pilih kartu menurut urutan: `gunung_meletus`, `badai`, `tambah_beban`, `ngebut`, `jam_rusak`, `macet_total`, `kabut_asap`, `pelit_hadiah` (perkiraan dampak turun; `copet` aturan terpisah).
+Syarat umum Normal/Hard: ≥ 1 target valid. Pilih kartu menurut urutan (`BOT_SABOTAGE_ORDER`, perkiraan dampak turun): `gunung_meletus`, `badai`, **`copet`** (tepat **setelah Badai**; nilai Copet = Badai = 6; syaratnya di tabel di bawah), `tambah_beban`, `ngebut`, `jam_rusak`, `macet_total`, `kabut_asap`, `pelit_hadiah`. Kartu pertama yang lolos syarat dimainkan.
 
 | Aspek | Normal | Hard |
 |---|---|---|
@@ -126,7 +133,7 @@ Disimpan sebagai data (mis. `src/logic/botProfiles.ts`); kode tidak boleh punya 
 | `modifierPoints` | 0,08 | 0,08 | 0,08 | §3 (`BOT_MODIFIER_POINTS`) |
 | `passMin` / `passMax` | 0,05 / 0,98 | idem | idem | §3 |
 | `thinkMs` | 1500–4000 | 1000–3000 | 500–2000 | §3 |
-| `afterWinMs` | 18000–30000 | 22000–34000 | 18000–30000 | §3 (setel dulu bila band §10 meleset) |
+| `afterWinMs` | 18000–30000 | 22000–34000 | 18000–30000 | §3 (tidak berubah di CP5a; setel dulu bila gerbang §10 meleset) |
 | `tickMs` | 3000–4000 | 2500–3500 | 2000–3000 | §7 |
 | `cardGapMs` | 8000 | 5000 | 4000 | §7 |
 | `cardPlayChance` | 0,30 | 1,0 | 1,0 | §7.1 |
@@ -141,7 +148,7 @@ Disimpan sebagai data (mis. `src/logic/botProfiles.ts`); kode tidak boleh punya 
 | `copetMinHand` | 1 | 2 | 3 | §7.2 |
 | `copetMinGapMs` | 90000 | 75000 | 60000 | §7.2 |
 | `gunungMinValid` | 1 | 1 | 2 | §7.2 |
-| `paceTargetMs` | 870000 (14,5 mnt) | 750000 (12,5) | 690000 (11,5) | §4 |
+| `paceTargetMs` | 870000 (14,5 mnt) | **840000 (14,0)** | **610000 (10,2)** | §4 (Normal dan Hard disetel di CP5a; v0.1: 750000 / 690000. Hard jendela 600–620 s) |
 | `paceSlackMs` | 20000 | 20000 | 20000 | §4 |
 | `restRecheckMs` | 1000 | 1000 | 1000 | §4 |
 
@@ -152,11 +159,13 @@ Tiga profil memakai **kelas controller yang sama** dengan bot (`profile` + flag 
 
 | Nama | `passChance` e/m/h | `passTimeFrac` | `thinkMs` | `afterWinMs` | Rute | Kartu | Target solo (median) |
 |---|---|---|---|---|---|---|---|
-| `casual` | 0,80 / 0,60 / 0,40 | 0,85–1,0 | 1500–3500 | 20000–34000 | Normal | logika Normal, `cardPlayChance` 0,6 | 11,0 ± 0,7 mnt |
-| `attentive` | 0,90 / 0,75 / 0,55 | 0,75–0,95 | 1000–2500 | 14000–26000 | Hard | logika Hard | 8,0 ± 0,7 mnt |
-| `expert` | 0,95 / 0,85 / 0,70 | 0,65–0,90 | 800–2000 | 11000–21000 | Hard | logika Hard | 6,5 ± 0,7 mnt |
+| `casual` | 0,80 / 0,60 / 0,40 | 0,85–1,0 | 1500–3500 | **36000–50000** | Normal | logika Normal, `cardPlayChance` 0,6 | 11,0 ± 0,7 mnt (terukur 10,77) |
+| `attentive` | 0,90 / 0,75 / 0,55 | 0,75–0,95 | 1000–2500 | **27500–39500** | Hard | logika Hard | 8,0 ± 0,7 mnt (terukur 7,82) |
+| `expert` | 0,95 / 0,85 / 0,70 | 0,65–0,90 | 800–2000 | **21500–31500** | Hard | logika Hard | 6,5 ± 0,7 mnt (terukur 6,40) |
 
 "Solo" = satu pemain tanpa lawan, preset Standard, 1000 seed. `casual` memakai pass 80/60/40 persis target tuning [minigames.md](minigames.md#keputusan-cp2-diputuskan-pm) (easy 80 / medium 60 / hard 40).
+
+**`afterWinMs` manusia referensi disetel ulang di CP5a** (v0.1: 20–34 / 14–26 / 11–21 s) supaya median solo cocok dengan target; nilai di atas ada di `HUMAN_PROFILE`. **Peringatan (QA CP5a):** angka ini hanya **asumsi model**. Lebih dari separuh waktu 10,8 menit `casual` adalah jeda antar-win yang diasumsikan (8 × ≈ 43 s ≈ 5,7 mnt), jadi gerbang C-1 hanya membuktikan model cocok dengan angka itu. Bila pemain kasual nyata lebih cepat dari ≈ 43 s antar win, C-1 pecah; **validasi dengan pemain sungguhan di playtest CP6** (tuas sisi manusia: cooldown atau durasi minigame, keputusan PM ★1).
 
 ## 10. Target keadilan dan rasa
 **Rumus perkiraan waktu per win** (dipakai §5 dan perkiraan di bawah): `E_win(d)` §5, dengan `estDurationMs` 25 s. Waktu selesai rute C (Medan, Jakarta, Toraja, Labuan Bajo: M, M, H, M) ≈ `W × (3 × E_win(M) + E_win(H))`.
@@ -170,7 +179,7 @@ Tiga profil memakai **kelas controller yang sama** dengan bot (`profile` + flag 
 | Bot Hard | 7,4 | 0,8 |
 | Manusia `casual` / `attentive` / `expert` | 11,0 / 8,0 / 6,5 | 1,9 / 1,3 / 1,0 |
 
-**Target win rate manusia referensi** (1000 match per sel, preset Standard, kartu aktif, rem aktif untuk bot). Band = persentase match yang dimenangkan manusia:
+**Band win rate manusia referensi** (1000 match per sel, preset Standard, kartu aktif, rem aktif untuk bot; **n ≥ 4000 untuk sel yang jadi gerbang**). Band = persentase match yang dimenangkan manusia. **Hanya dua sel yang menjadi gerbang (lihat "Gerbang" di bawah): `casual` vs 1 Hard dan vs 3 Hard. Semua sel lain hanya dilaporkan** (keputusan PM CP5a: Normal lebih mudah dari rancangan, `casual` vs 1 Normal menang ≈ 67%; kalibrasi ulang setelah playtest CP6). Angka terukur CP5a (seed 7, n=1000) di kolom terakhir tabel gerbang.
 
 | Manusia | vs 1 Easy | vs 1 Normal | vs 1 Hard | vs 3 Easy | vs 3 Normal | vs 3 Hard |
 |---|---|---|---|---|---|---|
@@ -178,11 +187,24 @@ Tiga profil memakai **kelas controller yang sama** dengan bot (`profile` + flag 
 | `attentive` | 90–99% | 60–80% | 35–55% | 85–97% | 25–45% | 12–25% |
 | `expert` | ≥ 97% | 80–92% | 55–75% | ≥ 95% | 45–65% | 25–45% |
 
-- "Easy biasanya kalah dari pemain yang memperhatikan" = `attentive` vs Easy ≥ 90%.
-- "Hard tantangan sungguhan" = `casual` ≤ 35% dan `attentive` ≤ 55% vs 1 Hard.
-- Antar bot, 1 lawan 1 (tanpa manusia): Hard menang atas Normal 65–80%, Normal atas Easy 75–90%.
+- "Easy biasanya kalah dari pemain yang memperhatikan" = `attentive` vs Easy ≥ 90% (dilaporkan; terukur 99,6%).
+- "Hard tantangan sungguhan" = `casual` vs 1 Hard di band 15–35% (gerbang) dan `attentive` ≤ 55% (dilaporkan; terukur 66%, di atas band).
+- Antar bot, 1 lawan 1 (tanpa manusia): **Hard menang atas Normal ≥ 65% tanpa batas atas** (gerbang; terukur 91–93%); Normal atas Easy 75–90% (dilaporkan; terukur 86–88%).
 
-**C-1 (median panjang match, `casual` + bot):** untuk tiap level × jumlah bot (1, 2, 3), median ∈ **[10, 13] menit**, persentil 5 ≥ 8 menit, persentil 95 ≤ 18 menit. Perkiraan analitis median: 10,2–10,6 untuk ke-9 sel, jadi **margin ke batas 10 tipis** (lihat ★1 §12). `attentive` dan `expert` hanya dicatat (≥ 7 / ≥ 6 menit), tidak jadi gerbang: pemain cepat memang menang lebih cepat.
+**Gerbang (diputuskan PM, CP5a; berlaku sama untuk setiap build berikutnya, termasuk CP5b dengan 7 minigame):**
+
+| # | Gerbang | Nilai | Terukur CP5a (seed 7) |
+|---|---|---|---|
+| G1 | **C-1 untuk Easy dan Normal saja**: `casual` + 1/2/3 bot Easy atau Normal (6 sel) | median ∈ **[10, 13] menit** dan **persentil 95 ≤ 18 menit**. Persentil 5 **hanya dicatat** (tidak bisa lebih tinggi dari p5 solo `casual` ≈ 7,3) | median 10,53–11,20; p95 12,3–13,9 |
+| G2 | **Hard, waktu**: `casual` + 1/2/3 bot Hard (3 sel) | median ∈ **[7, 9] menit** (target 7–9; keputusan PM, Hard boleh lebih pendek dari C-1) | 8,91 / 8,28 / 7,71 (margin 1 Hard hanya 0,09 mnt) |
+| G3 | **`casual` vs 1 Hard**, diukur **n ≥ 4000** (galat baku ≈ 0,6 poin; pada n=1000 ≈ 1,15 poin sehingga gerbang berisik) | menang **15–35%** | 16,4% (rata-rata 8 run ≈ 15,7%) |
+| G4 | **`casual` vs 3 Hard**, n ≥ 4000 | menang **3–12%** | 8,9% |
+| G5 | **Hard vs Normal**, 1 lawan 1, tanpa manusia | Hard menang **≥ 65%** (tanpa batas atas) | 91,2% |
+| G6 | Kalibrasi solo (§11 #14) | median `casual` / `attentive` / `expert` = 11,0 / 8,0 / 6,5 ± 0,7 | 10,77 / 7,82 / 6,40 |
+
+**Hanya dilaporkan (bukan gerbang):** persentil 5 semua sel; semua band win rate di tabel di atas selain G3–G5 (`casual` vs Easy/Normal, `attentive`, `expert`); Normal vs Easy; Hard vs Easy; median `attentive`/`expert` (≥ 7 / ≥ 6 menit). Alasan: pemain cepat memang menang lebih cepat, dan Normal sengaja tidak dituning sekeras Hard di CP5a.
+
+**Margin tipis (QA CP5a):** G2 untuk 1 Hard dan G3 hanya ± 0,1 menit / ± 1 poin dari batas; jendela `paceTargetMs` Hard ≈ 600–620 s (§4). Setiap perubahan cooldown, durasi minigame, `afterWinMs` manusia, atau isi pool minigame menggeser G2–G4 langsung; QA menjalankan ulang G1–G6 pada tiap build yang mengubah salah satunya (mis. CP5b: [minigames.md §10 F](minigames.md#f-simulasi-dengan-7-minigame-di-pool-gerbang)). Perkiraan analitis lama "median 10,2–10,6 untuk ke-9 sel" tidak berlaku untuk Hard (dikunci rem, §4).
 
 ## 11. Kriteria penerimaan QA (simulasi headless; seed tetap, hasil dicatat)
 1. **Nol penolakan:** 2000 match (campuran level, 1–3 bot, preset Standard) tanpa satu pun `actionRejected` dari aksi bot. Hand bot ≤ 5 setiap kali poll selesai; slot sabotase ≤ 2; kartu pertahanan ≤ 1 per pemain; fuzz zona kartu (cards.md §8 #19) lulus dengan bot memainkan kartu.
@@ -197,29 +219,31 @@ Tiga profil memakai **kelas controller yang sama** dengan bot (`profile` + flag 
 10. **Normal kartu:** `santai_dulu` dan `ojek_kilat` tidak pernah dimainkan di region easy; `kopi_tubruk` hanya saat cooldown; `tiket_pesawat` tidak pernah di region final atau dengan win parsial; sabotase target = pemimpin valid ≥ 95% (sisanya hanya saat pemimpin tidak valid).
 11. **Hard kartu:** boost percobaan hanya bila `p_next ≤ 0,70` (kecuali aturan luapan); Copet hanya bila hand target ≥ 3 dan ke hand terbanyak ≥ 95%; jarak antar Copet ≥ 60 s; `gunung_meletus` hanya bila ≥ 2 lawan valid (atau pengecualian di §7.2); `cermin_balik` dimainkan sebelum `payung_tameng`; kartu pertahanan dimainkan dalam 1 evaluasi setelah dimiliki.
 12. **Maks stack:** 10.000 evaluasi dengan hand penuh sabotase vs lawan "Penuh" / sudah `maxStacks`: tidak ada kartu dimainkan; kartu tetap di hand; tidak ada penolakan.
-13. **Win rate dan C-1:** sel-sel §10 (kasual/attentive/expert × level × 1 dan 3 bot, 1000 match per sel) masuk band; C-1 untuk `casual` × 9 sel masuk [10, 13] menit; hasil mentah (median, p5, p95) dilampirkan. Antar bot §10 masuk band.
-14. **Kalibrasi manusia referensi:** median solo tiap profil §9 dalam ± 0,7 menit dari target; bila meleset, setel `afterWinMs` profil itu, bukan profil bot, dan catat nilai akhir.
+13. **Gerbang G1–G5 (§10) dan laporan sel lain:** jalankan sel `casual`/`attentive`/`expert` × Easy/Normal/Hard × 1 dan 3 bot (+ 2 bot untuk median). **Gerbang:** G1 (C-1 Easy dan Normal: median [10, 13], p95 ≤ 18), G2 (median Hard [7, 9]), G3 dan G4 (`casual` vs 1 / 3 Hard di band, **n ≥ 4000** per sel), G5 (Hard vs Normal ≥ 65%). **Hanya dilaporkan:** p5, band win rate selain G3–G5, `attentive`/`expert`, Normal vs Easy, Hard vs Easy. Hasil mentah (win %, median, p5, p95, n) dilampirkan.
+14. **Kalibrasi manusia referensi (G6):** median solo tiap profil §9 dalam ± 0,7 menit dari target (11,0 / 8,0 / 6,5); bila meleset, setel `afterWinMs` profil itu, bukan profil bot, dan catat nilai akhir. Validasi dengan pemain nyata di playtest CP6.
 15. **Satu keputusan per 2–4 s:** jarak antar evaluasi kartu dalam rentang `tickMs` level itu (± 1 poll).
 16. **Pause:** pause membekukan semua jeda dan rem bot (jam game); tidak ada aksi bot selama pause.
 17. **Performa:** 1000 match 4 pemain (1 manusia referensi + 3 bot) selesai < 5 menit di CI (mode lompat jam).
 
 ## 12. Perubahan untuk Engineer
 - `PlaceholderBotController` → `SmartBotController` (profil dari `BOT_PROFILE`); stream baru `botMind` = `hash(matchSeed, playerId, 'botMind')`; stream `bot` tetap hanya untuk simulasi percobaan.
-- Penawaran dan buang bot: reducer tidak lagi auto-resolve; layar terbuka tanpa timer dan dijawab bot pada poll pertama (aksi atomik `pickCards` / `discardCards` atau setara). Invarian "bot tak pernah punya layar" menjadi "layar bot terbuka ≤ 1 poll".
+- Penawaran dan buang bot: reducer tidak lagi auto-resolve; layar terbuka tanpa timer dan dijawab bot pada poll pertama lewat aksi atomik **`chooseCards`** (§6). Invarian "bot tak pernah punya layar" menjadi "layar bot terbuka ≤ 1 poll".
 - Fungsi murni baru: `botScoreCard`, `botChooseOffer`, `botChooseDiscard`, `botChooseRoute`, `botPickCardToPlay`, `botPickSabotageTarget`, `isAheadOfSchedule`, semuanya `(state, map, profile, rng) → keputusan`, tanpa efek samping, supaya bisa dites.
-- `autoCards` dan `debug*` ditolak server dari klien (keputusan PM; lihat [cards.md §3.4](cards.md#34-layar-pilih-dan-layar-buang-timer-15-s-dr-25)).
+- `autoCards`, `chooseCards` (divalidasi per pengirim) dan `debug*` ditolak/divalidasi server dari klien (keputusan PM; lihat [cards.md §3.4](cards.md#34-layar-pilih-dan-layar-buang-timer-15-s-dr-25)).
 - Stream bot hidup di controller, bukan di `GameState`; bila nanti match disimpan di tengah, state stream harus ikut diserialisasi.
 
 ## 13. Keputusan dan ★ untuk PM
-Usulan Designer; PM boleh mengubah.
+Status tiap ★ di bawah sudah diputuskan PM (pm-decisions.md, bagian CP5a dan CP5a QA follow-up).
 
-- **★1 C-1 vs kecepatan bot.** Dengan tabel pass chance yang sudah disetujui, Normal/Hard jauh lebih cepat dari pemain kasual (analitis 9,9 dan 7,4 mnt vs 11,0). Tanpa pengaman, match melawan Hard ≈ 7–8 menit. Solusi yang dipilih: **rem pemimpin** (§4) + `afterWinMs` 18–34 s. Margin ke 10 menit tipis (≈ 10,2–10,6); bila playtest CP6 menunjukkan pemain kasual lebih cepat dari 11 menit, tuas yang efektif ada di **sisi manusia** (cooldown +2 s, durasi minigame +10–20%), bukan di bot, karena bot tidak bisa memperpanjang match melewati waktu manusianya. Alternatif ditolak: (b) menurunkan pass chance Normal/Hard (merusak "Hard = tantangan"), (c) batas bawah waktu selesai keras (bot menahan di garis finish, terasa curang).
-- **★2 Hard memainkan Payung/Cermin segera, bukan menyimpan** (gdd lama: "Hard menyimpan"). Kartu aktif tidak bisa dicopet dan tidak terlihat lawan, jadi menyimpan hanya menambah risiko dicopet. Hard lebih pintar lewat syarat boost (`p_next`), Copet, dan Gunung.
-- **★3 Semua bot Normal/Hard menyerang pemimpin.** Bila manusia memimpin, ia jadi sasaran utama dari semua bot (dibatasi Q2 = 2 slot). Dicatat sebagai risiko playtest (gdd Risiko b); tuas: `copetMinGapMs`, `cardGapMs`, `gunungMinValid`.
-- **★4 Reducer berubah:** bot menjawab layar penawaran lewat controller (§12). Ini menyentuh invarian dan tes QA CP4b #17.
-- **★5 Angka manusia referensi dan rem adalah perkiraan tangan.** Gerbang QA §11 #13–14 yang memutuskan; `afterWinMs` boleh bergeser banyak.
+- **★1 C-1 vs kecepatan bot: DITERIMA, dengan cakupan C-1 dipersempit.** Rem pemimpin (§4) + `afterWinMs` 18–34 s. C-1 [10, 13] berlaku untuk Easy dan Normal saja; melawan Hard median target [7, 9] dengan `paceTargetMs` Hard 610 s (fachril memilih rekomendasi PM). Bot tidak pernah dipercepat; tuas bila C-1 pecah: `afterWinMs`/`paceTargetMs` dulu, lalu sisi manusia (cooldown, durasi minigame). Alternatif ditolak: menurunkan pass chance Normal/Hard; batas bawah waktu selesai keras.
+- **★2 Hard memainkan Payung/Cermin segera: DITERIMA.** Kartu aktif tidak bisa dicopet dan tidak terlihat lawan, jadi menyimpan hanya menambah risiko dicopet.
+- **★3 Semua bot Normal/Hard menyerang pemimpin: DITERIMA** dengan risiko playtest (manusia pemimpin jadi sasaran, dibatasi Q2). Terukur CP5a: ≈ 1,1 sabotase/menit ke manusia pemimpin, dua slot penuh 14% waktu: tidak menindas; tuas tetap `copetMinGapMs`, `cardGapMs`, `gunungMinValid`.
+- **★4 Reducer berubah (bot menjawab layar lewat controller, `chooseCards`): DITERIMA.** Invarian QA CP4b #17 menjadi "layar bot tidak terbuka lebih dari 1 poll"; determinisme replay tetap.
+- **★5/★6 Angka manusia referensi, rem, dominasi rute C: DITERIMA sebagai sementara.** Gerbang QA §11 #13–14 memutuskan; rute dibuktikan di peta sintetis.
+- **Hard overflow 10%: dibiarkan** (§7). **Pace Hard 600–620 s: diterima sampai playtest CP6.**
 - Bot tidak ganti target, tidak memakai crowding, dan tidak membaca `targetId` lawan (picker tak menampilkannya).
 - `oleh_oleh` tidak dimainkan bila win berikutnya adalah win penentu (tanpa penawaran, C-3; §7 #5).
 
 ## Change log
+**0.2 (2026-11-17):** CP5b: disinkronkan dengan build CP5a dan keputusan PM. §2 jenis sabotase pending lawan (validator saja); §3 `D` memuat `previewMs`, peluang lulus sama untuk semua minigame; §4 batas bawah waktu bot dan jendela pace Hard, indikator "menahan diri"; §5 `routeMistake` di antara tetangga bukan terbaik; §6 aksi `chooseCards`; §7 Copet setelah Badai, catatan luapan; §8 pace Normal 840 s / Hard 610 s; §9 `afterWinMs` manusia 36–50 / 27,5–39,5 / 21,5–31,5 s dan peringatan C-1; §10 gerbang G1–G6 baru (C-1 hanya Easy/Normal dengan median + p95, Hard median [7, 9], casual vs Hard n ≥ 4000, Hard vs Normal ≥ 65%, sisanya dilaporkan); §11 #13–14; §13 status ★.
 **0.1 (2026-11-17):** CP5a: spek bot pintar pertama.

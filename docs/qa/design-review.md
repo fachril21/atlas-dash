@@ -115,6 +115,15 @@ Baris temuan di atas tidak diubah. Resolusi tertulis di [cards.md v0.4](../cards
 | DR-47 | Resolved (stream `copet` pemilik Cermin) | cards.md §2.2.4 butir 2 |
 | DR-36, DR-37 | Resolved di CP5a (tie-break rute, definisi "kesempatan" dan "relevan") | bots.md §5, §7 |
 
+## Status resolusi minigame CP5b (Designer)
+| ID | Status | Di mana |
+|---|---|---|
+| DR-15 | Resolved (`spawnIntervalMs` + jaminan target spawn ≥ ⌈1,5 × hitsRequired⌉; jadwal tetap terhadap modifier tempo) | minigames.md §5 |
+| DR-17 | Resolved untuk 4 minigame baru (satu contoh per minigame; clamp race layer lalu pemetaan khusus lalu perpanjangan `extraTarget`) | minigames.md §1.1, §5–§8 |
+| DR-18 | Resolved (knob "kartu mirip" jadi turunan `iconGroups`; grid untuk 6–12 pasangan) | minigames.md §7, map-indonesia.md §6.1 |
+| DR-42 | Resolved (25,0 / 25,5 / 27,0 s) | minigames.md §8 |
+| DR-44 | Resolved (`requires` per minigame, tabel tunggal) | map-indonesia.md §6.2 #5, minigames.md §9 |
+
 ## Status resolusi bot (Designer, CP5a)
 | ID | Status | Di mana |
 |---|---|---|

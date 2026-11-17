@@ -1,6 +1,6 @@
 # Peta Indonesia + Format Data Peta
 
-**Status:** designed · **Updated:** 2026-11-16 (v0.3, CP3a) · Kembali ke [GDD](gdd.md) · Requirement: R1, R4, R5, R6, R6.1, M2, Q1
+**Status:** designed · **Version:** 0.4 · **Updated:** 2026-11-17 (v0.4, CP5b: `places` dan `minigameThemes` untuk Whack-a-Mole, Ketapel, Cocokkan Kartu, Tebak Lokasi; `requires` per minigame di §6.2 #5; v0.3, CP3a) · Kembali ke [GDD](gdd.md) · Requirement: R1, R4, R5, R6, R6.1, M2, Q1
 
 ## 1. Graph region
 
@@ -151,11 +151,18 @@ interface MapData {
     winsRequired: number;
     routeLength: { min: number; max: number }; // region yang dilewati setelah start, TERMASUK finish
   }>;
-  places: Array<{                      // untuk Tebak Lokasi & Cocokkan Kartu
+  places: Array<{                      // untuk Tebak Lokasi (soal) dan ikon kartu Cocokkan Kartu
     id: string; name: Record<string, string>; regionId: string;
-    image: string; icon: string; hint: Record<string, string>;
+    image: string;                    // ilustrasi soal Tebak Lokasi (webp, rasio 4:3)
+    icon: string;                     // ikon kecil landmark (png, dipakai juga di daftar ikon memory_match bila disebut di sana)
+    hint: Record<string, string>;     // petunjuk teks level medium; tidak boleh menyebut nama place/region
   }>;
-  minigameThemes: Record<string, Record<string, string | string[]>>; // per minigame id
+  minigameThemes: Record<string, Record<string, string | string[]>>; // per minigame id; key per minigame di bawah
+  // dodge_runner:  { obstacles: string[] }                          // ≥ 3 id prop
+  // whack_a_mole:  { target: string; decoy: string }                // id karakter
+  // slingshot:     { targets: string[]; platforms?: string[] }      // ≥ 2 skin target; platform diorama opsional
+  // memory_match:  { icons: string[]; iconGroups: string[] }        // iconGroups[i] = kelompok warna icons[i], sepanjang icons
+  // tap_timing, simon, guess_location: tidak punya tema (guess_location memakai places)
   cardSkins?: Record<string, { nameKey?: string; icon?: string }>;     // opsional
 }
 ```
@@ -164,8 +171,18 @@ interface MapData {
 1. Semua `edges` menunjuk region yang ada; graph tidak punya siklus (DAG).
 2. Untuk tiap preset aktif, dicek pada subgraph yang terjangkau dari `start` (edge yang masuk ke `start` diabaikan, sehingga preset Short yang mulai di Jakarta tetap valid): setiap region terjangkau bisa mencapai `finish` (tidak ada jalan buntu), `finish` tidak punya edge keluar, tidak ada edge langsung `start → finish`, dan **setiap** jalur start→finish punya panjang (start tidak dihitung, finish dihitung) dalam `routeLength`.
 3. Ada ≥ 2 region dengan ≥ 2 edge keluar (titik cabang, R6).
-4. `places` ≥ 8 dan tersebar di ≥ 5 region (syarat Tebak Lokasi), tiap `regionId` valid.
-5. Tiap `region.type` ada di `regionTypes`; tiap minigame di pool punya entri `minigameThemes` yang dibutuhkannya.
+4. Tiap `places[].regionId` valid dan `id` place unik. (Jumlah minimum place dicek oleh `requires` Tebak Lokasi di butir 5, bukan penolakan peta: peta kecil tetap valid, hanya tanpa Tebak Lokasi.)
+5. Tiap `region.type` ada di `regionTypes`. **Setiap minigame memeriksa data miliknya lewat `requires(map)` (DR-44); minigame yang gagal tidak masuk pool, peta tidak ditolak** (peta ditolak hanya bila pool kosong atau tidak memuat `tap_timing`, minigames.md §1.3):
+
+   | Minigame | `requires` |
+   |---|---|
+   | `tap_timing`, `simon` | tidak ada |
+   | `dodge_runner` | `minigameThemes.dodge_runner.obstacles` ≥ 3 id |
+   | `whack_a_mole` | `minigameThemes.whack_a_mole.target` dan `.decoy` ada |
+   | `slingshot` | `minigameThemes.slingshot.targets` ≥ 2 id (`platforms` opsional, bila tidak ada pakai platform generik) |
+   | `memory_match` | `minigameThemes.memory_match.icons` ≥ 12 id dan `iconGroups.length === icons.length` |
+   | `guess_location` | `places.length ≥ 10` dan place tersebar di ≥ 7 region berbeda (7 soal dengan region berbeda bila `extraTarget` +2; sebelumnya ≥ 8 di ≥ 5, minigames.md v0.5) |
+6. Semua file aset yang disebut (`image`, `icon`, `icons[]`, id karakter/prop) harus ada; id model/prop yang tidak ditemukan membuat minigame terkait gagal `requires` dengan log (bukan crash).
 
 ### 6.3 Indonesia (isi MVP)
 
@@ -229,11 +246,25 @@ interface MapData {
   "minigameThemes": {
     "dodge_runner":  { "obstacles": ["prop_becak", "prop_bajaj", "prop_gerobak_bakso", "prop_ayam", "prop_durian"] },
     "whack_a_mole":  { "target": "char_tikus_sawah", "decoy": "char_kucing_oren" },
-    "slingshot":     { "targets": ["prop_kelapa", "prop_kendi", "prop_layangan"] },
-    "memory_match":  { "icons": ["icons/rendang.png", "icons/sate.png", "icons/nasi_goreng.png", "icons/bakso.png", "icons/es_kelapa.png", "icons/wayang.png"] }
+    "slingshot":     { "targets": ["prop_kelapa", "prop_kendi", "prop_layangan"], "platforms": ["prop_menara_balok", "prop_atap_genteng", "prop_pohon_kelapa"] },
+    "memory_match":  {
+      "icons":      ["icons/rendang.png", "icons/sate.png", "icons/nasi_goreng.png", "icons/bakso.png", "icons/es_kelapa.png", "icons/wayang.png",
+                     "icons/tugu_jogja.png", "icons/monas.png", "icons/istana_maimun.png", "icons/tanah_lot.png", "icons/piaynemo.png", "icons/komodo.png",
+                     "icons/tongkonan.png", "icons/jam_gadang.png"],
+      "iconGroups": ["cokelat", "cokelat", "cokelat", "kuning", "hijau", "merah",
+                     "putih", "kuning", "kuning", "biru", "biru", "hijau",
+                     "merah", "putih"]
+    }
   }
 }
 ```
+
+**Data minigame CP5b (ringkasan untuk Engineer dan Art):**
+- **Tebak Lokasi:** 13 `places` di 10 region lolos `requires` (≥ 10 di ≥ 7). Tiap region punya ≥ 1 place sehingga 7 soal region-berbeda selalu mungkin. Kunci bahasa `name`/`hint` mengikuti fallback `id` (DR-45). `hint` tidak boleh memuat nama place atau region; aturan data untuk peta baru.
+- **Whack-a-Mole:** `target` dan `decoy` masing-masing 1 karakter (siluet berbeda, 1 pose idle + 1 pose dipukul); tidak perlu daftar karakter lain.
+- **Ketapel:** 3 skin target + 3 platform. Platform diskalakan vertikal ke tinggi target (2–6 m), jadi harus berupa model yang tetap utuh bila ditarik (menara balok bertumpuk, batang pohon, atap di tiang).
+- **Cocokkan Kartu:** 14 ikon dalam 6 kelompok warna: cokelat 3 (rendang, sate, nasi goreng), kuning 3 (bakso, monas, istana maimun), hijau 2 (es kelapa, komodo), merah 2 (wayang, tongkonan), biru 2 (tanah lot, piaynemo), putih 2 (tugu jogja, jam gadang). Ikon sekelompok **harus berbeda siluet**, bukan hanya warna (aksesibilitas). Kelompok menentukan "kartu mirip" turunan 0/2/4 pada 6/8/10 pasangan (minigames.md §7). Ikon landmark memakai file ikon place yang sama (`icons/<place>.png`), tidak ada aset ganda.
+- **Peta baru (Jepang dst.):** wajib menyertakan semua key tema di atas bila ingin 7 minigame lengkap; key yang hilang hanya mengeluarkan minigame itu dari pool, tidak merusak peta.
 
 Preset Short/Long hanya contoh agar sistem bisa diuji; tidak dipakai di MVP (R5). `short` (start Jakarta) punya jalur 3–4 region (termasuk finish). `long` di contoh ini masih memakai graph yang sama dan hanya placeholder; keputusan PM: Long nanti mendapat node tambahan (durasi diatur panjang rute, R5), bukan `winsRequired` lebih besar.
 
@@ -245,5 +276,7 @@ Cukup file `public/maps/japan/map.json` baru dengan `regionTypes` sendiri (mis. 
 - PM: edge satu arah/DAG dan finish tanpa minigame (sesuai scaffold engineer, D-003/D-004); ganti target setelah gagal, win parsial hangus; Toraja sebagai node Sulawesi; Long nanti ditambah node; `places` berupa ilustrasi low-poly buatan sendiri.
 
 - CP3a: model gerak target + 2 win (DR-01), cooldown tetap jalan saat ganti target + ulang lewat Mulai (DR-05), menang di event logic `playerFinished` (DR-06), skema peta final tanpa `twoWay` di `public/maps/<id>/` (DR-03), rumus `remainingWins` + tabel node (DR-07), target durasi median ≈ 10–13 menit (owner, C-1), Tiket Pesawat dilarang di region final (PM, C-2).
+
+- CP5b (usulan Designer): `places` tidak lagi menolak peta; syarat jumlah dipindah ke `requires` Tebak Lokasi dan dinaikkan ke ≥ 10 di ≥ 7 region; `iconGroups` paralel di tema `memory_match` (14 ikon, 6 kelompok, DR-18); `platforms` opsional di tema `slingshot`; tabel `requires` per minigame di §6.2 #5 (DR-44). Validator di kode perlu disesuaikan (butir 4 dan 5 berubah).
 
 Tidak ada open question tersisa di dokumen ini. Temuan QA lain untuk peta (DR-43–DR-45) dikerjakan di CP3b.
