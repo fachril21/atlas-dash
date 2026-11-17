@@ -1,0 +1,81 @@
+.mg-memory {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.mm-top { padding: calc(10px + var(--safe-top)) calc(16px + var(--safe-right)) 0 calc(16px + var(--safe-left)); }
+.mm-timer { height: 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.5); overflow: hidden; }
+.mm-timer-fill { height: 100%; background: #2ec4b6; transform-origin: left center; }
+.mm-timer.low .mm-timer-fill { background: #ff6b6b; animation: mm-pulse 0.5s ease-in-out infinite alternate; }
+.mm-stats { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; min-height: 48px; font-size: 22px; font-weight: 800; }
+.mm-status { flex: 1; text-align: center; font-size: 22px; }
+.mm-peek {
+  appearance: none; border: 0; min-width: 48px; min-height: 48px; padding: 0 16px; border-radius: 16px;
+  background: #fff; color: inherit; font: inherit; font-size: 18px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 4px 0 rgba(35, 50, 74, 0.25);
+}
+.mm-peek[hidden] { display: none; }
+.mm-stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 8px calc(16px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(16px + var(--safe-left));
+}
+.mm-board { display: grid; gap: 8px; justify-content: center; align-content: center; }
+.mm-card {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  width: var(--cell);
+  height: var(--cell);
+  min-width: 40px;
+  min-height: 40px;
+  background: none;
+  perspective: 600px;
+  cursor: pointer;
+  touch-action: none;
+  color: inherit;
+}
+.mm-card:focus-visible { outline: 4px solid #23324a; outline-offset: 2px; border-radius: 16px; }
+.mm-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--flip-ms, 200ms) ease-out;
+}
+.mm-back, .mm-face {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  border-radius: 16px; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  box-shadow: 0 4px 0 rgba(35, 50, 74, 0.25);
+}
+.mm-back { background: #3a86ff; color: #fff; font-size: 34px; font-weight: 900; background-image: repeating-linear-gradient(45deg, #ffffff22 0 6px, transparent 6px 12px); }
+.mm-face { background: #fff; transform: rotateY(180deg); padding: 8%; }
+.mm-face svg { width: 100%; height: 100%; }
+.mm-card[data-state='open'] .mm-inner, .mm-card[data-state='matched'] .mm-inner,
+.mg-memory[data-phase='preview'] .mm-card .mm-inner, .mg-memory[data-phase='peek'] .mm-card[data-state='open'] .mm-inner { transform: rotateY(180deg); }
+.mm-card[data-state='matched'] { opacity: 0.35; pointer-events: none; }
+.mm-card.wrong .mm-inner { animation: mm-wrong 0.3s ease-in-out; }
+.mm-card.fx-match .mm-inner { animation: mm-pop 0.18s cubic-bezier(0.34, 1.56, 0.64, 1); }
+/* Kabut Asap: faces at 60% contrast and a 2 px blur; matched cards stay clear. */
+.mg-memory.fog .mm-card:not([data-state='matched']) .mm-face { filter: blur(2px) contrast(0.6); }
+.mg-memory.reduced-motion .mm-inner { transition: none; transform: none !important; }
+.mg-memory.reduced-motion .mm-card .mm-face { transform: none; opacity: 0; transition: opacity 80ms; }
+.mg-memory.reduced-motion .mm-card[data-state='open'] .mm-face, .mg-memory.reduced-motion .mm-card[data-state='matched'] .mm-face,
+.mg-memory.reduced-motion[data-phase='preview'] .mm-card .mm-face, .mg-memory.reduced-motion[data-phase='peek'] .mm-card[data-state='open'] .mm-face { opacity: 1; }
+.mg-memory.reduced-motion .mm-card .mm-back { transition: opacity 80ms; }
+.mg-memory.reduced-motion .mm-card.wrong .mm-inner, .mg-memory.reduced-motion .mm-card.fx-match .mm-inner { animation: none; }
+.mm-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@keyframes mm-pulse { from { opacity: 1; } to { opacity: 0.55; } }
+@keyframes mm-wrong { 0%, 100% { translate: 0; } 25% { translate: -4px; } 75% { translate: 4px; } }
+@keyframes mm-pop { from { scale: 1.3; } to { scale: 1; } }
+.icon-memory { display: flex; gap: 10px; }
+.icon-memory i { display: block; width: 44px; height: 58px; border-radius: 10px; background: #3a86ff; animation: mm-icon-flip 1.4s ease-in-out infinite; }
+.icon-memory i:nth-child(2) { animation-delay: 0.2s; }
+@keyframes mm-icon-flip { 0%, 30% { background: #3a86ff; } 40%, 80% { background: #ffd23f; } 100% { background: #3a86ff; } }

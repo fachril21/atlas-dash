@@ -1,6 +1,6 @@
 /**
- * Intro badges for the modifiers snapshotted at Mulai (ui-flow §8). Hindari Rintangan does not
- * change its duration for timeDelta; it changes tempo, so the badge says so (cards.md §5).
+ * Intro badges for the modifiers snapshotted at Mulai (ui-flow §8). Hindari Rintangan and Whack-a-Mole do not
+ * change their duration for timeDelta; they change tempo, so the badge says so (cards.md §5).
  */
 import type { Attempt, MinigameModifier } from '../logic';
 import { t } from './strings';
@@ -10,7 +10,7 @@ export interface Badge {
   text: string;
 }
 
-const DODGE_TEMPO_PER_SECOND = 0.03; // minigames.md §4: M = speed x (1 - 0.03 x sum timeDelta)
+const DODGE_TEMPO_PER_SECOND = 0.03; // minigames.md §4 and §5 (Whack-a-Mole): M = speed x (1 - 0.03 x sum timeDelta)
 
 export function modifierBadges(minigameId: string, modifiers: readonly MinigameModifier[], attempt: Pick<Attempt, 'baseDifficulty' | 'difficulty'>): Badge[] {
   const out: Badge[] = [];
@@ -23,7 +23,7 @@ export function modifierBadges(minigameId: string, modifiers: readonly MinigameM
   for (const m of modifiers) {
     switch (m.kind) {
       case 'timeDelta':
-        if (minigameId === 'dodge_runner') {
+        if (minigameId === 'dodge_runner' || minigameId === 'whack_a_mole') {
           const pct = Math.round(Math.abs(m.seconds) * DODGE_TEMPO_PER_SECOND * 100);
           out.push({ key: 'timeDelta', text: t(m.seconds > 0 ? 'badge.tempoDown' : 'badge.tempoUp', { p: pct }) });
         } else {

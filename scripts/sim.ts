@@ -1,5 +1,5 @@
 /**
- * Headless match simulator CLI (bots.md §9-§11): `npm run sim -- [--n 1000] [--seed 1] [--only solo|c1|win|botbot|all] [--json]`.
+ * Headless match simulator CLI (bots.md §9-§11): `npm run sim -- [--n 1000] [--seed 1] [--only solo|c1|win|botbot|all] [--human casual|attentive|expert] [--level easy|normal|hard] [--pool id,id,...] [--json]`.
  * Prints median match time and win rates per cell, with the §10 bands, for the QA gates.
  * Bundled with rolldown and run with node (see package.json), so it needs no extra tooling.
  */
@@ -28,10 +28,15 @@ const N = Number(opt('n', '1000'));
 const SEED = Number(opt('seed', '1'));
 const ONLY = opt('only', 'all');
 const JSON_OUT = args.includes('--json');
+// Optional cell filters for quick tuning runs: --human casual --level hard (both default to all).
+const HUMAN_FILTER = opt('human', 'all');
+const LEVEL_FILTER = opt('level', 'all');
 
 const data = JSON.parse(readFileSync(join(process.cwd(), 'public/maps/indonesia/map.json'), 'utf8')) as MapData;
 const map = loadMap(data, 'standard', MINIGAME_LOGIC);
-const pool = minigamePool(map.data);
+// --pool a,b,c restricts the pool (e.g. the CP5a three: tap_timing,simon,dodge_runner) to measure what the new minigames change.
+const POOL_FILTER = opt('pool', '');
+const pool = minigamePool(map.data).filter((id) => POOL_FILTER === '' || POOL_FILTER.split(',').includes(id));
 
 const LEVELS: BotLevel[] = ['easy', 'normal', 'hard'];
 const HUMANS: HumanProfileId[] = ['casual', 'attentive', 'expert'];
@@ -78,7 +83,9 @@ if (ONLY === 'all' || ONLY === 'c1' || ONLY === 'win') {
   log('(* = attentive/expert bands are report only)');
   log('human      bots        win%   band        time: median  p5   p95   time gate (E/N: 10-13+p95<=18, H: 7-9)   p5>=8 (info)');
   for (const h of HUMANS) {
+    if (HUMAN_FILTER !== 'all' && HUMAN_FILTER !== h) continue;
     for (const level of LEVELS) {
+      if (LEVEL_FILTER !== 'all' && LEVEL_FILTER !== level) continue;
       for (const k of [1, 2, 3] as const) {
         const r = cell([humanSeat(h), ...botSeats(level, k)], `${h}:${level}:${k}`);
         const pct = r.winRate * 100;

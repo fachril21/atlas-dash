@@ -19,6 +19,7 @@ export class MinigameHost {
   private instance: MinigameInstance | null = null;
   private is3d = false;
   private result: MinigameResult | null = null;
+  private levelData: unknown = null;
   private onResult: ((r: MinigameResult) => void) | null = null;
   private readonly overlay: HTMLElement;
   private readonly introEl: HTMLElement;
@@ -53,11 +54,37 @@ export class MinigameHost {
     return this.phase;
   }
 
+  /** QA hook (?debug=1): what the open minigame is made of and where it stands. */
+  debugInfo(): { id: string; phase: Phase; level: unknown; playMs: number; state: unknown; finished: boolean } | null {
+    if (this.phase === 'closed' || !this.instance) return null;
+    const snap = this.instance.snapshot?.();
+    return {
+      id: this.overlay.dataset.minigame ?? '',
+      phase: this.phase,
+      level: snap?.level ?? this.levelData,
+      playMs: snap?.playT ?? 0,
+      state: snap?.state ?? null,
+      finished: snap?.finished ?? false,
+    };
+  }
+
+  /** QA hook: feed a logic input to the running minigame at its current play time. */
+  debugInput(input: unknown): boolean {
+    if (this.phase !== 'play' || !this.instance?.injectInput) return false;
+    this.instance.injectInput(input);
+    return true;
+  }
+
+  debugGpuStats(): { geometries: number; textures: number; calls: number } | null {
+    return this.instance?.gpuStats?.() ?? null;
+  }
+
   open(attempt: Attempt, ctx: MinigameContext, onResult: (r: MinigameResult) => void): void {
     this.close();
     const def = getMinigameDefinition(attempt.minigameId);
     const level = def.generateLevel(ctx);
     for (const w of (level as { warnings?: string[] }).warnings ?? []) console.warn(w);
+    this.levelData = level;
     this.onResult = onResult;
     this.is3d = def.render === '3d';
     this.result = null;

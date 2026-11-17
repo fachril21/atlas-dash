@@ -46,6 +46,10 @@ export interface MapData {
     icon: string;
     hint: LocalizedText;
   }[];
+  /**
+   * Per-minigame theme data (map-indonesia.md §6.1): dodge_runner { obstacles }, whack_a_mole
+   * { target, decoy }, slingshot { targets, platforms? }, memory_match { icons, iconGroups }.
+   */
   minigameThemes: Record<string, Record<string, string | string[]>>;
   cardSkins?: Record<string, { nameKey?: string; icon?: string }>;
 }
@@ -82,9 +86,6 @@ export class MapValidationError extends Error {
     this.name = 'MapValidationError';
   }
 }
-
-export const MIN_PLACES = 8;
-export const MIN_PLACE_REGIONS = 5;
 
 function buildOutgoing(data: MapData): Map<string, string[]> {
   const out = new Map<string, string[]>();
@@ -203,18 +204,26 @@ export function validateMap(raw: unknown, pool: readonly MapRequirement[] = []):
     for (const k of enabled) problems.push(...validatePreset(data, k));
   }
 
-  // Rule 4: places.
+  // Rule 4: places point at known regions with unique ids. How many places a map needs is the
+  // business of the minigame that uses them (guess_location.requires, DR-44), not of the map.
   const places = Array.isArray(data.places) ? data.places : [];
-  for (const pl of places) if (!ids.has(pl.regionId)) problems.push(`place "${pl.id}" has unknown regionId "${pl.regionId}"`);
-  if (places.length < MIN_PLACES) problems.push(`needs >= ${MIN_PLACES} places, found ${places.length}`);
-  const placeRegions = new Set(places.map((pl) => pl.regionId)).size;
-  if (placeRegions < MIN_PLACE_REGIONS) {
-    problems.push(`places must cover >= ${MIN_PLACE_REGIONS} regions, found ${placeRegions}`);
+  const seenPlace = new Set<string>();
+  for (const pl of places) {
+    if (!ids.has(pl.regionId)) problems.push(`place "${pl.id}" has unknown regionId "${pl.regionId}"`);
+    if (seenPlace.has(pl.id)) problems.push(`duplicate place id "${pl.id}"`);
+    seenPlace.add(pl.id);
   }
 
-  // Rule 5b: each minigame in the pool has what it needs.
-  for (const mg of pool) {
-    if (mg.requires && !mg.requires(data)) problems.push(`minigame "${mg.id}" requirements not met by this map`);
+  // Rule 5b (DR-44): a minigame whose requires(map) fails just drops out of the pool. The map is
+  // rejected only when the pool ends up empty, or when tap_timing (the guaranteed fallback) is
+  // in the registry but not usable.
+  if (pool.length > 0) {
+    const usable = pool.filter((mg) => !mg.requires || mg.requires(data));
+    if (usable.length === 0) {
+      problems.push(`no minigame is available on this map (requirements not met: ${pool.map((m) => m.id).join(', ')})`);
+    } else if (pool.some((m) => m.id === 'tap_timing') && !usable.some((m) => m.id === 'tap_timing')) {
+      problems.push('minigame "tap_timing" must be usable on every map');
+    }
   }
   return problems;
 }

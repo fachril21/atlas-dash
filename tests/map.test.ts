@@ -45,8 +45,8 @@ describe('Indonesia map (map_indonesia_valid)', () => {
     expect(map.finishId).toBe('merauke');
   });
 
-  it('pool holds the three CP3b minigames in registry order', () => {
-    expect(minigamePool(map.data)).toEqual(['tap_timing', 'simon', 'dodge_runner']);
+  it('pool holds all seven minigames in registry order', () => {
+    expect(minigamePool(map.data)).toEqual(['tap_timing', 'simon', 'dodge_runner', 'whack_a_mole', 'slingshot', 'memory_match', 'guess_location']);
   });
 });
 
@@ -111,12 +111,7 @@ describe('map validation rejects invalid data (map_rejects_invalid_<case>)', () 
       d.places = d.places.filter((p) => p.regionId !== 'padang');
       d.places.push({ ...d.places[0]!, id: 'x1' }, { ...d.places[0]!, id: 'x2' });
     }, /branch/],
-    ['few-places', (d) => { d.places = d.places.slice(0, 7); }, /needs >= 8 places/],
-    ['places-4-regions', (d) => {
-      const keep = new Set(['sabang', 'medan', 'padang', 'jakarta']);
-      const base = d.places.filter((p) => keep.has(p.regionId));
-      d.places = [...base, ...base.map((p) => ({ ...p, id: `${p.id}_2` }))];
-    }, /cover >= 5 regions/],
+    ['duplicate-place', (d) => { d.places.push({ ...d.places[0]! }); }, /duplicate place id/],
     ['unknown-type', (d) => { d.regions[1]!.type = 'gurun'; }, /unknown type "gurun"/],
     ['bad-place-region', (d) => { d.places[0]!.regionId = 'atlantis'; }, /unknown regionId/],
   ];
@@ -127,9 +122,24 @@ describe('map validation rejects invalid data (map_rejects_invalid_<case>)', () 
     expect(() => loadMap(mutate(fn))).toThrow(MapValidationError);
   });
 
-  it('a minigame whose requires() fails is reported', () => {
-    const problems = validateMap(indonesiaData(), [{ id: 'needs_more', requires: () => false }]);
-    expect(problems.join()).toMatch(/needs_more/);
+  it('a minigame whose requires() fails only drops out of the pool; the map stays valid (DR-44)', () => {
+    const only = [{ id: 'tap_timing' }, { id: 'needs_more', requires: () => false }];
+    expect(validateMap(indonesiaData(), only)).toEqual([]);
+    expect(() => loadMap(indonesiaData(), 'standard', only)).not.toThrow();
+  });
+
+  it('a map is rejected only when the pool is empty or tap_timing is unusable', () => {
+    expect(validateMap(indonesiaData(), [{ id: 'needs_more', requires: () => false }]).join()).toMatch(/no minigame is available/);
+    const noTap = validateMap(indonesiaData(), [{ id: 'tap_timing', requires: () => false }, { id: 'simon' }]);
+    expect(noTap.join()).toMatch(/tap_timing/);
+  });
+
+  it('few places no longer reject a map: it only loses guess_location (places >= 10 in >= 7 regions)', () => {
+    const d = indonesiaData();
+    d.places = d.places.slice(0, 5);
+    expect(validateMap(d, MINIGAME_LOGIC)).toEqual([]);
+    expect(minigamePool(d)).not.toContain('guess_location');
+    expect(minigamePool(d)).toContain('tap_timing');
   });
 });
 

@@ -3,7 +3,7 @@
  * (HUD, minigame host, input). Logic never imports from here; render/UI read state and
  * submit actions through the human controller.
  *
- * URL params: ?seed=<uint32|0xhex>  ?debug=1  ?bots=1..3  ?botLevel=easy|normal|hard
+ * URL params: ?seed=<uint32|0xhex>  ?debug=1  ?minigame=<id> (with debug)  ?bots=1..3  ?botLevel=easy|normal|hard
  * (with ?bots or ?botLevel the Setup Bot screen is skipped; without them it opens first, preselected 3 bots / Normal)
  */
 import {
@@ -23,6 +23,7 @@ import {
   type GameState,
   type MapGraph,
   type MinigameContext,
+  type MinigameResult,
   type PlayerController,
   type PlayerState,
 } from './logic';
@@ -30,7 +31,7 @@ import { BoardView } from './render/board';
 import { PawnsView } from './render/pawns';
 import { NodePicker } from './render/picking';
 import { Stage } from './render/stage';
-import { installDebug } from './ui/debug';
+import { installDebug, type SandboxOptions } from './ui/debug';
 import { CardsUi } from './ui/cardsUi';
 import { Hud } from './ui/hud';
 import { MinigameHost } from './ui/minigameHost';
@@ -47,6 +48,7 @@ const MAX_STEPS_PER_FRAME = 2000;
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.get('debug') === '1';
+const FORCE_MINIGAME = DEBUG ? params.get('minigame') : null; // ?debug=1&minigame=<id>: every draw of the human's minigame
 const SEED_PARAM = parseSeed(params.get('seed'));
 const BOT_COUNT = clampInt(Number(params.get('bots') ?? 3), 1, 3);
 const BOT_LEVEL: BotLevel = (['easy', 'normal', 'hard'] as const).find((l) => l === params.get('botLevel')) ?? 'normal';
@@ -185,10 +187,43 @@ async function boot(): Promise<void> {
         gameOverAgo = 0;
       }
     }
+    if (FORCE_MINIGAME) forceHumanMinigame();
     hud.showEvents(state, events);
     cardsUi.onEvents(state, events);
     for (const e of events) if (e.type === 'actionRejected') cardsUi.onRejected(state, e.action, e.reason);
     onStateChanged(state);
+  }
+
+  /** ?minigame=<id> (debug): the human's next minigame is always `FORCE_MINIGAME` once a target is set. */
+  function forceHumanMinigame(): void {
+    const p = me();
+    if (!p || !FORCE_MINIGAME || p.phase === 'playing' || !p.targetId || p.nextMinigameId === FORCE_MINIGAME) return;
+    if (!pool.includes(FORCE_MINIGAME)) {
+      console.warn(`[atlas] ?minigame=${FORCE_MINIGAME} is not in the pool [${pool.join(', ')}]`);
+      return;
+    }
+    session.dispatch({ type: 'debugForceMinigame', playerId: HUMAN_ID, minigameId: FORCE_MINIGAME });
+  }
+
+  /** Debug sandbox: one minigame outside the match (no cards, no race state). */
+  let sandboxResult: MinigameResult | null = null;
+  function openSandbox(id: string, o: SandboxOptions): boolean {
+    if (host.isOpen || !pool.includes(id)) return false;
+    const difficulty = o.difficulty ?? 'medium';
+    const modifiers = (o.modifiers ?? []).slice();
+    const attempt: NonNullable<PlayerState['attempt']> = {
+      minigameId: id, targetId: [...map.regions.keys()][1] as string, baseDifficulty: difficulty, modifiers, cardUids: [],
+      onFail: { noCooldown: false, cooldownDeltaMs: 0 }, onWin: { pickDelta: 0, winMultiplier: 1 },
+      seed: (o.seed ?? 1) >>> 0, difficulty, attemptIndex: 0, introMs: o.introMs ?? 300, startedAtMs: 0,
+    };
+    const ctx: MinigameContext = {
+      seed: attempt.seed, difficulty, modifiers, map: map.data, regionId: attempt.targetId,
+      inputMode: lastPointerType, settings: { reducedMotion, reducedFlash: false, sfxVolume: 1 },
+    };
+    sandboxResult = null;
+    host.open(attempt, ctx, (r) => { sandboxResult = r; });
+    if (paused) host.pause();
+    return true;
   }
 
   function onStateChanged(state: Readonly<GameState>): void {
@@ -312,6 +347,13 @@ async function boot(): Promise<void> {
         return host.force(passed);
       },
       setPaused,
+      minigame: {
+        info: () => host.debugInfo(),
+        input: (i) => host.debugInput(i),
+        gpu: () => host.debugGpuStats(),
+        open: openSandbox,
+        lastResult: () => sandboxResult,
+      },
       human: HUMAN_ID,
       extra: { renderer: stage.renderer, scene: stage.scene, stage },
     });

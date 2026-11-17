@@ -94,8 +94,10 @@ describe('pick rule over whole runs (mg_pick_rules, 3-minigame pool)', () => {
 });
 
 describe('CP3b minigame registry', () => {
-  it('3D flag: only dodge_runner is 3D; simon and tap_timing are 2D', () => {
-    expect(Object.fromEntries(MINIGAME_LOGIC.map((m) => [m.id, m.render]))).toEqual({ tap_timing: '2d', simon: '2d', dodge_runner: '3d' });
+  it('3D flag: dodge_runner and slingshot are 3D, the other five are 2D', () => {
+    expect(Object.fromEntries(MINIGAME_LOGIC.map((m) => [m.id, m.render]))).toEqual({
+      tap_timing: '2d', simon: '2d', dodge_runner: '3d', whack_a_mole: '2d', slingshot: '3d', memory_match: '2d', guess_location: '2d',
+    });
   });
 
   it('intro sentences are at most 8 words (mg_intro_rule)', () => {

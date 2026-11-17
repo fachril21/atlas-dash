@@ -1,0 +1,77 @@
+.mg-guess {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.gl-top { padding: calc(10px + var(--safe-top)) calc(16px + var(--safe-right)) 0 calc(16px + var(--safe-left)); }
+.gl-timer { height: 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.5); overflow: hidden; }
+.gl-timer-fill { height: 100%; background: #2ec4b6; transform-origin: left center; }
+.gl-timer.low .gl-timer-fill { background: #ff6b6b; animation: gl-pulse 0.5s ease-in-out infinite alternate; }
+.gl-timer.blink { animation: gl-blink 0.3s steps(2, jump-none) 1; }
+.gl-stats { display: flex; justify-content: space-between; margin-top: 8px; font-size: 20px; font-weight: 800; }
+.gl-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
+  overflow: auto;
+}
+.gl-pic {
+  width: min(420px, 100%);
+  aspect-ratio: 16 / 10;
+  max-height: 34dvh;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 6px 0 rgba(35, 50, 74, 0.2);
+  flex: none;
+}
+.gl-pic svg { display: block; width: 100%; height: 100%; }
+.gl-clue { margin: 0; min-height: 1.3em; font-size: 22px; font-weight: 900; text-align: center; }
+.gl-clue[hidden] { display: none; }
+.gl-choices { display: grid; grid-template-columns: 1fr; gap: 10px; width: min(480px, 100%); }
+@media (min-width: 700px) { .gl-choices { grid-template-columns: 1fr 1fr; } }
+.gl-choice {
+  appearance: none;
+  border: 0;
+  position: relative;
+  min-height: 56px;
+  padding: 8px 44px 8px 44px;
+  border-radius: 16px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(35, 50, 74, 0.25);
+}
+.gl-choice[hidden] { display: none; }
+.gl-choice:focus-visible { outline: 4px solid #23324a; outline-offset: 2px; }
+.gl-num { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border-radius: 8px; background: #23324a; color: #fff; font-size: 15px; line-height: 24px; text-align: center; }
+@media (pointer: coarse) { .gl-num { display: none; } .gl-choice { padding-left: 16px; } }
+.gl-mark { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 26px; font-weight: 900; }
+.gl-choice[data-state='right'] { background: #8fdc6f; }
+.gl-choice[data-state='wrong'] { background: #ff8a8a; }
+.gl-choice[data-state='wrong'] .gl-text { text-decoration: line-through; }
+.gl-choice:disabled { cursor: default; opacity: 1; }
+.gl-choice:disabled:not([data-state]) { opacity: 0.7; }
+.mg-guess.reduced-motion .gl-timer.low .gl-timer-fill { animation: none; }
+.gl-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@keyframes gl-pulse { from { opacity: 1; } to { opacity: 0.55; } }
+@keyframes gl-blink { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+@media (orientation: landscape) and (max-height: 500px) {
+  .gl-stage { flex-direction: row; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
+  .gl-pic { width: min(300px, 40%); max-height: 56dvh; }
+  .gl-choices { width: min(420px, 55%); }
+  .gl-clue { width: 100%; order: 3; }
+}
+.icon-guess { position: relative; display: flex; align-items: center; gap: 10px; }
+.icon-guess .pic { display: block; width: 90px; height: 56px; border-radius: 10px; background: linear-gradient(#bfe9ff 60%, #8fdc6f 60%); }
+.icon-guess .q { font-style: normal; font-size: 40px; font-weight: 900; animation: gl-pulse 0.8s ease-in-out infinite alternate; }

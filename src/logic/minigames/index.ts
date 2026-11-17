@@ -2,17 +2,38 @@
 import type { MapData } from '../map';
 import { Rng, type RngState } from '../rng';
 import { dodgeRunnerLogic } from './dodgeRunner';
+import { guessLocationLogic } from './guessLocation';
+import { memoryMatchLogic } from './memoryMatch';
 import { simonLogic } from './simon';
+import { slingshotLogic } from './slingshot';
 import { tapTimingLogic } from './tapTiming';
+import { whackAMoleLogic } from './whackAMole';
 import type { MinigameLogic } from './types';
 
 export * from './types';
 export * from './tapTiming';
 export * from './simon';
 export * from './dodgeRunner';
+export * from './whackAMole';
+export * from './slingshot';
+export * from './memoryMatch';
+export * from './guessLocation';
+export * from './solvers';
 
-/** Registry: fixed order, as in minigames.md §9 (§1.3 step 1). Never reorder; the pick depends on it. */
-export const MINIGAME_LOGIC: readonly MinigameLogic<any, any, any>[] = [tapTimingLogic, simonLogic, dodgeRunnerLogic];
+/**
+ * Registry: fixed order, as in minigames.md §9 (§1.3 step 1). Never reorder; the pick depends on it.
+ * A minigame may enter only if its modifier table maps all six kinds (cards.md §5): each logic
+ * handles timeDelta/tolerance/speed/extraTarget/fog/hint (tested in tests/cp5b.test.ts).
+ */
+export const MINIGAME_LOGIC: readonly MinigameLogic<any, any, any>[] = [
+  tapTimingLogic,
+  simonLogic,
+  dodgeRunnerLogic,
+  whackAMoleLogic,
+  slingshotLogic,
+  memoryMatchLogic,
+  guessLocationLogic,
+];
 
 export function getMinigameLogic(id: string): MinigameLogic<any, any, any> {
   const mg = MINIGAME_LOGIC.find((m) => m.id === id);

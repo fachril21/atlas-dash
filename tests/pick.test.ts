@@ -18,21 +18,21 @@ import { indonesiaData, ROOT, settleCards } from './helpers';
 
 const map = loadMap(indonesiaData(), 'standard', MINIGAME_LOGIC);
 const pool = minigamePool(map.data);
-const REGISTRY = ['tap_timing', 'simon', 'dodge_runner'];
+const REGISTRY = ['tap_timing', 'simon', 'dodge_runner', 'whack_a_mole', 'slingshot', 'memory_match', 'guess_location'];
 
 describe('registry and pool (DR-02, §1.3 steps 1-2)', () => {
-  it('registry order is fixed: tap_timing, simon, dodge_runner', () => {
+  it('registry order is fixed: the three CP3b minigames, then the four CP5b ones', () => {
     expect(MINIGAME_LOGIC.map((m) => m.id)).toEqual(REGISTRY);
   });
 
-  it('pool keeps registry order and holds all three on the Indonesia map', () => {
+  it('pool keeps registry order and holds all seven on the Indonesia map', () => {
     expect(pool).toEqual(REGISTRY);
   });
 
   it('a minigame whose requires() fails is not in the pool; order of the rest is kept', () => {
     const data = indonesiaData();
     data.minigameThemes['dodge_runner'] = { obstacles: ['only_one'] };
-    expect(minigamePool(data)).toEqual(['tap_timing', 'simon']);
+    expect(minigamePool(data)).toEqual(['tap_timing', 'simon', 'whack_a_mole', 'slingshot', 'memory_match', 'guess_location']);
   });
 });
 
@@ -44,12 +44,12 @@ describe('pickMinigame algorithm (§1.3 steps 3-5)', () => {
     return r.getState();
   };
 
-  it('with last = simon the candidates are [tap_timing, dodge_runner], indexed by the draw', () => {
+  it('with last = simon the candidates are the other six in registry order, indexed by the draw', () => {
     // Mirror the spec: pick = kandidat[rng.int(kandidat.length)].
     for (let i = 0; i < 50; i++) {
       let st = start;
       for (let k = 0; k < i; k++) st = afterOneDraw(st);
-      const expected = ['tap_timing', 'dodge_runner'][Rng.fromState(st).int(0, 1)];
+      const expected = REGISTRY.filter((id) => id !== 'simon')[Rng.fromState(st).int(0, 5)];
       expect(pickMinigame(pool, st, 'simon').id).toBe(expected);
     }
   });
@@ -75,11 +75,11 @@ describe('pickMinigame algorithm (§1.3 steps 3-5)', () => {
     const seen2 = new Set<string>();
     st = start;
     for (let i = 0; i < 200; i++) {
-      const r = pickMinigame(pool, st, 'guess_location');
+      const r = pickMinigame(pool, st, 'not_in_this_pool');
       seen2.add(r.id);
       st = r.rng;
     }
-    expect(seen2.size).toBe(3);
+    expect(seen2.size).toBe(7);
   });
 
   it('always draws exactly one number, even with a single candidate', () => {
@@ -108,16 +108,32 @@ describe('pickMinigame algorithm (§1.3 steps 3-5)', () => {
   });
 
   it('pool of 3: each of the two candidates has about 50% chance', () => {
+    const pool3 = ['tap_timing', 'simon', 'dodge_runner'];
     let st = start;
     const counts: Record<string, number> = { tap_timing: 0, simon: 0, dodge_runner: 0 };
     for (let i = 0; i < 4000; i++) {
-      const r = pickMinigame(pool, st, 'simon');
+      const r = pickMinigame(pool3, st, 'simon');
       counts[r.id]!++;
       st = r.rng;
     }
     expect(counts['simon']).toBe(0);
     expect(counts['tap_timing']! / 4000).toBeGreaterThan(0.46);
     expect(counts['tap_timing']! / 4000).toBeLessThan(0.54);
+  });
+
+  it('pool of 7: each of the six candidates has about 16.7% (D, minigames.md §10 #12)', () => {
+    let st = start;
+    const counts: Record<string, number> = Object.fromEntries(REGISTRY.map((id) => [id, 0]));
+    for (let i = 0; i < 10_000; i++) {
+      const r = pickMinigame(pool, st, 'slingshot');
+      counts[r.id]!++;
+      st = r.rng;
+    }
+    expect(counts['slingshot']).toBe(0);
+    for (const id of REGISTRY.filter((x) => x !== 'slingshot')) {
+      expect(counts[id]! / 10_000, id).toBeGreaterThan(0.152);
+      expect(counts[id]! / 10_000, id).toBeLessThan(0.182);
+    }
   });
 
   it('does not mutate its input and throws on an empty pool', () => {

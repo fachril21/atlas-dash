@@ -440,6 +440,11 @@
         "prop_kelapa",
         "prop_kendi",
         "prop_layangan"
+      ],
+      "platforms": [
+        "prop_menara_balok",
+        "prop_atap_genteng",
+        "prop_pohon_kelapa"
       ]
     },
     "memory_match": {
@@ -449,7 +454,31 @@
         "icons/nasi_goreng.png",
         "icons/bakso.png",
         "icons/es_kelapa.png",
-        "icons/wayang.png"
+        "icons/wayang.png",
+        "icons/tugu_jogja.png",
+        "icons/monas.png",
+        "icons/istana_maimun.png",
+        "icons/tanah_lot.png",
+        "icons/piaynemo.png",
+        "icons/komodo.png",
+        "icons/tongkonan.png",
+        "icons/jam_gadang.png"
+      ],
+      "iconGroups": [
+        "cokelat",
+        "cokelat",
+        "cokelat",
+        "kuning",
+        "hijau",
+        "merah",
+        "putih",
+        "kuning",
+        "kuning",
+        "biru",
+        "biru",
+        "hijau",
+        "merah",
+        "putih"
       ]
     }
   }

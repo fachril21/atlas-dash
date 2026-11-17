@@ -32,6 +32,8 @@ export type GameAction =
   | { type: 'debugGrantCard'; playerId: string; cardId: string }
   /** DEBUG ONLY (QA hooks): empty the hand (cards go to discarded). */
   | { type: 'debugClearHand'; playerId: string }
+  /** DEBUG ONLY (QA hooks): make the next minigame of the current target a specific one from the pool. */
+  | { type: 'debugForceMinigame'; playerId: string; minigameId: string }
   /** DEBUG ONLY (QA hooks): open an offer now, optionally with fixed card ids and pick count. */
   | { type: 'debugForceOffer'; playerId: string; cardIds?: string[]; pick?: number };
 

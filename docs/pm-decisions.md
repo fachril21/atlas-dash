@@ -100,3 +100,6 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | ★4 Zona Lebar preview on Cocokkan Kartu hard | Accepted. Watch it in the playtest; the lever is to cap the bonus preview at +2 s. |
 | ★5/★6 Ketapel `hitRadiusM`, hand-estimated pass rates | Accepted as provisional. QA checks the perfect- and idle-player bounds; the real feel is checked in the CP6 playtest. |
 | New props and icons (menara balok, atap genteng, pohon kelapa, landmark icons) | The Engineer builds them as procedural low-poly / simple SVG placeholders. Final art is in CP6. |
+| CP5b Engineer interpretations 1–7 | Accepted. The Ketapel placement change (200 tries plus the clear-path rule) must be written into minigames.md §6 at the next Designer pass. |
+| Casual reference `afterWinMs` 36–50 → 32–46 s | Accepted only as a change to the *model*, not to the game. The gates G3/G4 now pass partly because the reference human was refitted. Real C-1 and Hard win rates must be validated with real players in the CP6 playtest. bots.md §9 gets synced at the next Designer pass. |
+| `debugForceMinigame` | Debug only. The server must reject it, like the other `debug*` actions. |

@@ -1,0 +1,53 @@
+.mg-sling {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: crosshair;
+}
+.sl-stage { position: absolute; inset: 0; }
+.sling-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.sl-top {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  pointer-events: none;
+  padding: calc(10px + var(--safe-top)) calc(16px + var(--safe-right)) 0 calc(16px + var(--safe-left));
+}
+.sl-timer { height: 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.6); overflow: hidden; }
+.sl-timer-fill { height: 100%; background: #2ec4b6; transform-origin: left center; }
+.sl-timer.low .sl-timer-fill { background: #ff6b6b; animation: sl-pulse 0.5s ease-in-out infinite alternate; }
+.sl-stats { display: flex; justify-content: space-between; margin-top: 8px; font-size: 22px; font-weight: 800; color: #23324a; text-shadow: 0 1px 0 #fff8; }
+.sl-bullets { letter-spacing: 3px; }
+.sl-wind {
+  display: inline-block; margin-top: 6px; padding: 2px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8); color: #23324a; font-size: 17px; font-weight: 800;
+}
+.sl-wind.calm { opacity: 0.8; }
+.sl-preview {
+  position: absolute; left: 50%; top: 38%; transform: translateX(-50%);
+  padding: 4px 14px; border-radius: 999px; background: #2ecc71; color: #fff; font-size: 20px; font-weight: 900; pointer-events: none;
+}
+.sl-preview[hidden], .sl-readout[hidden], .sl-hint[hidden] { display: none; }
+.sl-readout {
+  position: absolute; left: 50%; bottom: calc(14px + var(--safe-bottom)); transform: translateX(-50%);
+  padding: 2px 12px; border-radius: 999px; background: rgba(35, 50, 74, 0.8); color: #fff; font-size: 18px; font-weight: 800; pointer-events: none;
+}
+.sl-hint {
+  position: absolute; left: 0; right: 0; bottom: calc(52px + var(--safe-bottom)); margin: 0; text-align: center; padding: 0 16px;
+  font-size: 16px; font-weight: 800; color: #23324a; text-shadow: 0 1px 0 #fff; pointer-events: none;
+}
+.mg-sling.fx-down::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 0 6px #2ecc71; animation: sl-flash 0.25s ease-out forwards;
+}
+.mg-sling.reduced-motion.fx-down::after, .mg-sling.reduced-flash.fx-down::after { animation: none; opacity: 0; }
+@keyframes sl-pulse { from { opacity: 1; } to { opacity: 0.55; } }
+@keyframes sl-flash { from { opacity: 1; } to { opacity: 0; } }
+/* The 3D canvas fills the overlay, so skip the expensive backdrop blur. */
+.mg-overlay[data-minigame='slingshot'] { backdrop-filter: none; -webkit-backdrop-filter: none; background: #bfe9ff; }
+.icon-sling { position: relative; display: block; width: 150px; height: 60px; border-radius: 12px; background: #fff; overflow: hidden; }
+.icon-sling .stone { position: absolute; left: 12px; bottom: 10px; width: 14px; height: 14px; border-radius: 50%; background: #23324a; animation: sl-icon-fly 1.3s ease-in infinite; }
+.icon-sling .tgt { position: absolute; right: 14px; top: 10px; width: 24px; height: 24px; border-radius: 50%; background: #c8553d; animation: sl-icon-fall 1.3s ease-in infinite; }
+@keyframes sl-icon-fly { 0% { transform: translate(0, 0); } 70%, 100% { transform: translate(100px, -34px); } }
+@keyframes sl-icon-fall { 0%, 65% { transform: none; } 100% { transform: translateY(26px) rotate(80deg); } }

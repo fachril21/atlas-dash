@@ -1,9 +1,12 @@
 /**
  * QA test hooks (docs/qa/test-plan.md §0), installed only with ?debug=1:
  *   window.__atlasTest = { getState, dispatch, forceMinigameResult, setTimeScale, events, exportLog, ... }
+ * plus (CP5b) forceMinigame / openMinigame / getMinigame / minigameInput for the 7 minigames, and the
+ * URL param ?minigame=<id> that forces every draw of the human's minigame (debug only).
  * plus a small panel with the seed, time scale and an "export log" button.
  */
-import { getCard, sabotageSlotsUsed, type GameAction, type GameEvent, type GameSession, type GameState, type LoggedEvent, type RejectReason } from '../logic';
+import { SlingScene } from './minigames/slingScene';
+import { getCard, sabotageSlotsUsed, type MinigameModifier, type MinigameResult, type GameAction, type GameEvent, type GameSession, type GameState, type LoggedEvent, type RejectReason } from '../logic';
 
 export interface DebugDeps {
   getSession(): GameSession;
@@ -13,9 +16,26 @@ export interface DebugDeps {
   /** Resolve the human's current attempt (starting one first if allowed). False if impossible. */
   forceMinigameResult(passed: boolean): boolean;
   setPaused(paused: boolean): void;
+  /** CP5b minigame hooks (implemented by main.ts, which owns the host). */
+  minigame: {
+    info(): { id: string; phase: string; level: unknown; playMs: number; state: unknown; finished: boolean } | null;
+    input(input: unknown): boolean;
+    gpu(): { geometries: number; textures: number; calls: number } | null;
+    /** Open a minigame on its own (not part of the match): result goes to lastResult(). */
+    open(id: string, opts: SandboxOptions): boolean;
+    lastResult(): MinigameResult | null;
+  };
   /** Player id of the human (card hooks act on this player). */
   human: string;
   extra: Record<string, unknown>;
+}
+
+export interface SandboxOptions {
+  difficulty?: 'easy' | 'medium' | 'hard';
+  modifiers?: MinigameModifier[];
+  seed?: number;
+  /** Intro length; default 300 ms so tests do not wait 3 s. */
+  introMs?: number;
 }
 
 export interface AtlasTestApi {
@@ -47,6 +67,26 @@ export interface AtlasTestApi {
    * sabotage and reflections) and whether a running attempt has snapshotted it.
    */
   getPending(playerId: string): { uid: string; id: string; type: string; source: string | null; inAttempt: boolean }[];
+  /**
+   * CP5b: make the human's next minigame on the current target `id` (must be in the pool and a
+   * target must be selected). `?minigame=<id>` does this for every draw of the whole match.
+   */
+  forceMinigame(id: string): boolean;
+  /**
+   * CP5b: open one minigame on its own, outside the match (no cards, no race state): returns false
+   * when one is already open or `id` is unknown. The result is kept for lastMinigameResult().
+   */
+  openMinigame(id: string, opts?: SandboxOptions): boolean;
+  /** CP5b: the open minigame's id, phase, generated `level` (incl. targets[i].ideal for Ketapel), play time and pure state. */
+  getMinigame(): { id: string; phase: string; level: unknown; playMs: number; state: unknown; finished: boolean } | null;
+  /** CP5b: feed a pure-logic input ({hole}, {card}/{peek}, {choice}, {yawDeg,power}) at the current play time. */
+  minigameInput(input: unknown): boolean;
+  /** CP5b: renderer.info counters of the open 3D minigame (null if none or 2D). */
+  minigameGpu(): { geometries: number; textures: number; calls: number } | null;
+  /** CP5b: GPU counters read right after the last 3D minigame was disposed (must be 0). */
+  lastDisposedGpu(): { geometries: number; textures: number; calls: number } | null;
+  /** CP5b: result of the last sandbox minigame. */
+  lastMinigameResult(): MinigameResult | null;
   /** CP4b: sabotage slots in use (0-2) for any player. */
   getSabotageSlots(playerId: string): number;
   /**
@@ -115,6 +155,13 @@ export function installDebug(deps: DebugDeps): AtlasTestApi {
       const p = deps.getSession().state.players.find((q) => q.id === playerId);
       return p ? sabotageSlotsUsed(p) : 0;
     },
+    forceMinigame: (id) => !isRejected(deps.getSession().dispatch({ type: 'debugForceMinigame', playerId: deps.human, minigameId: id })),
+    openMinigame: (id, opts = {}) => deps.minigame.open(id, opts),
+    getMinigame: () => deps.minigame.info(),
+    minigameInput: (input) => deps.minigame.input(input),
+    minigameGpu: () => deps.minigame.gpu(),
+    lastDisposedGpu: () => SlingScene.lastDisposedStats,
+    lastMinigameResult: () => deps.minigame.lastResult(),
     playCard: (cardIdOrUid, targetId, playerId = deps.human) => playCardHook(cardIdOrUid, targetId, playerId),
     playSabotage: (cardIdOrUid, targetId, playerId = deps.human) => playCardHook(cardIdOrUid, targetId, playerId),
   };

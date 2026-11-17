@@ -351,10 +351,12 @@ export function simulateAttempt(attempt: Readonly<Attempt>, map: MapGraph, profi
     regionId: attempt.targetId,
     inputMode: 'mouse',
     settings: { reducedMotion: false, reducedFlash: false, sfxVolume: 1 },
-  }) as { durationMs: number };
+  }) as { durationMs: number; previewMs?: number };
+  // D (minigames.md §9): play duration plus a preview that sits outside it (Cocokkan Kartu).
+  const effectiveMs = level.durationMs + (level.previewMs ?? 0);
   const passed = rng.chance(passChanceFor(profile, attempt.difficulty, attempt.modifiers));
   const [lo, hi] = passed ? profile.passTimeFrac : profile.failTimeFrac;
   const frac = rng.range(lo, hi);
-  const timeTakenMs = Math.round(level.durationMs * (passed && SURVIVAL_MINIGAMES.has(attempt.minigameId) ? 1 : frac));
+  const timeTakenMs = Math.round(effectiveMs * (passed && SURVIVAL_MINIGAMES.has(attempt.minigameId) ? 1 : frac));
   return { passed, timeTakenMs, resultAtMs: attempt.startedAtMs + attempt.introMs + timeTakenMs + RESULT_BANNER_MS };
 }

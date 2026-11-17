@@ -394,6 +394,16 @@ export function applyAction(map: MapGraph, prev: GameState, action: GameAction):
       return { state, events: [{ type: 'handChanged', playerId: p.id }] };
     }
 
+    case 'debugForceMinigame': {
+      // Debug-only, like the other debug* actions: a server must validate it per sender.
+      if (before.phase === 'playing') return reject('busy');
+      if (!before.targetId) return reject('no-target');
+      if (!prev.pool.includes(action.minigameId)) return reject('bad-selection');
+      const state = cloneState(prev);
+      (state.players[idx] as PlayerState).nextMinigameId = action.minigameId;
+      return { state, events: [] };
+    }
+
     case 'debugForceOffer': {
       if (before.phase === 'playing') return reject('busy');
       if (cardScreenOpen(before)) return reject('cards-open');

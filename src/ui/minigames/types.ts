@@ -17,6 +17,10 @@ export interface MinigameInstance {
   destroy(): void;
   /** Called exactly once. */
   onFinish(cb: (r: MinigameResult) => void): void;
+  /** QA hooks (CP5b views): feed a logic input at the current play time / read level + state. */
+  injectInput?(input: unknown): void;
+  snapshot?(): { playT: number; state: unknown; level: unknown; finished: boolean };
+  gpuStats?(): { geometries: number; textures: number; calls: number };
 }
 
 export interface MinigameDefinition<Level = any> extends MinigameLogic<Level, any, any> {

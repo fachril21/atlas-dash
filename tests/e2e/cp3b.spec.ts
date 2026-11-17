@@ -549,7 +549,7 @@ test.describe('dodge_runner', () => {
   });
 });
 
-// ---------- pick rule (3-minigame pool) ----------
+// ---------- pick rule (7-minigame pool since CP5b) ----------
 
 test.describe('pick rule', () => {
   test('the pick stays hidden until Mulai, then the minigame opens', async ({ page }) => {
@@ -560,14 +560,14 @@ test.describe('pick rule', () => {
     expect((await me(page)).nextMinigameId).toBeTruthy(); // drawn in the logic ...
     const hud = [await byId(page, 'target-panel').innerHTML(), await byId(page, 'toast').innerHTML(), await byId(page, 'progress-list').innerHTML()].join('\n');
     // ... but nothing in the HUD names it or shows its intro text / icon
-    for (const leak of ['tap_timing', 'simon', 'dodge_runner', 'Ulangi urutan', 'Geser kiri-kanan', 'Tap saat jarum', 'icon-simon', 'icon-dodge', 'data-minigame']) {
+    for (const leak of ['tap_timing', 'simon', 'dodge_runner', 'whack_a_mole', 'slingshot', 'memory_match', 'guess_location', 'Ulangi urutan', 'Geser kiri-kanan', 'Tap saat jarum', 'Pukul yang muncul', 'Tarik, bidik', 'Buka dua kartu', 'Tempat ini ada di mana', 'icon-simon', 'icon-dodge', 'icon-whack', 'icon-sling', 'icon-memory', 'icon-guess', 'data-minigame']) {
       expect(hud, `HUD leaks "${leak}" before Mulai`).not.toContain(leak);
     }
     await expect(page.locator('[data-minigame]')).toHaveCount(0);
     // changing target does not reveal it either
     await press(byId(page, 'region-padang'));
     await expect.poll(async () => (await me(page)).targetId).toBe('padang');
-    expect(await byId(page, 'target-panel').innerHTML()).not.toMatch(/tap_timing|simon|dodge_runner|icon-simon|icon-dodge/);
+    expect(await byId(page, 'target-panel').innerHTML()).not.toMatch(/tap_timing|simon|dodge_runner|whack_a_mole|slingshot|memory_match|guess_location|icon-simon|icon-dodge|icon-whack|icon-sling|icon-memory|icon-guess/);
     await press(byId(page, 'btn-start'));
     await expect(byId(page, 'mg-overlay')).toBeVisible();
     await expect(byId(page, 'mg-overlay')).toHaveAttribute('data-minigame', (await attemptOf(page)).minigameId);
@@ -586,7 +586,7 @@ test.describe('pick rule', () => {
     }
     expect(played).toHaveLength(8);
     for (let i = 1; i < played.length; i++) expect(played[i], `win ${i + 1} repeats ${played[i - 1]}: ${played.join(',')}`).not.toBe(played[i - 1]);
-    for (const id of played) expect(['tap_timing', 'simon', 'dodge_runner']).toContain(id);
+    for (const id of played) expect(['tap_timing', 'simon', 'dodge_runner', 'whack_a_mole', 'slingshot', 'memory_match', 'guess_location']).toContain(id);
     expect(new Set(played).size).toBeGreaterThanOrEqual(2);
     expect(consoleErrors.get(page)).toEqual([]);
   });

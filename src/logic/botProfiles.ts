@@ -167,7 +167,7 @@ export const HUMAN_PROFILE: Readonly<Record<HumanProfileId, BotProfile>> = {
     passChance: { easy: 0.8, medium: 0.6, hard: 0.4 },
     passTimeFrac: [0.85, 1.0],
     thinkMs: [1500, 3500],
-    afterWinMs: [36_000, 50_000],
+    afterWinMs: [32_000, 46_000],
     cardPlayChance: 0.6,
     paceTargetMs: Infinity,
   },
