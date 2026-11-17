@@ -42,3 +42,16 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | "Sudah kena kartu ini" label | Accepted, with its small information leak. This beats a card being wasted because the target already holds `maxStacks`. |
 | Slot hold | Accepted. Sabotage slots stay held until the target's attempt finishes. |
 | Designer rules for DR-24/27/28/29/32/33/35/47 and QA-CP4a-01/02/03 | Accepted as written in cards.md v0.4 §2.2–§3.4 and ui-flow §1/§7. |
+
+## CP4b QA follow-up (PM, 2026-11-17)
+
+| Topic | Decision |
+|---|---|
+| Engineer interpretations 1–6 | All accepted, per the QA verdicts. |
+| Hand max during deferred Discard | The real maximum is 10. A 10-card Discard screen is usable at 390×844. The doc text (cards.md §1, ui-flow §6) is corrected in the next Designer pass. |
+| Doc wording (Gunung instance per target, burned card to the sender's `discarded`, §2.2.1 disabled reason, §8 #16 tolerance of slots 1–4 ±4 and slot 5 ±7) | Accepted as built. The docs are updated in the next Designer pass. |
+| QA-CP4b-04 picker rebuilt via innerHTML (mobile tap risk) | Fix at the start of CP5 (Engineer): update rows per node. |
+| QA-CP4b-05 dodge/simon test timeouts under load | Fix at the start of CP5 (Engineer). |
+| QA-CP4b-01/02/03 (tap outside, Esc back to Detail, initial focus) | Deferred to CP6 polish. |
+| Drag card onto progress row, number keys 1–5, card fly animation | Deferred to CP6. |
+| `autoCards` action | Like `debug*`, the server must reject it from clients before multiplayer. |
