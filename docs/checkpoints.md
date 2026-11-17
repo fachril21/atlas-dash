@@ -11,6 +11,6 @@ Rule: every checkpoint needs fachril's approval before it starts. Before each on
 | CP3b | ✅ done | Designer, Engineer, QA | Remaining should-fix doc items; Simon + Hindari Rintangan (3D) | 2D + 3D minigame framework proven |
 | CP4a | ✅ done | Designer, Engineer, QA | Card docs fixes; 20 cards as data + effect engine; pick-N-of-5 offer, hand max 5 + discard, 15 s timers; boost (self) cards active; offers are boost-only until CP4b; fix CP3b B-1 | Earn and use boost cards in a race |
 | CP4b | ✅ done | Designer, Engineer, QA | Sabotage + targeting + cap 2, Copet, shield/mirror, comeback rarity weights | Full card loop |
-| CP5a | 🔄 in progress | Designer, Engineer, QA | Bot spec; Easy/Normal/Hard bots with card use, targeting and route choice; QA-CP4b-04/05 fixes; doc corrections | Bots that really race and fight back |
-| CP5b | ⏸ draft | Designer, Engineer, QA | Whack-a-Mole, Cocokkan Kartu, Tebak Lokasi, Ketapel 3D | Solo vs bots full match with all 7 minigames |
+| CP5a | ✅ done | Designer, Engineer, QA | Bot spec; Easy/Normal/Hard bots with card use, targeting and route choice; QA-CP4b-04/05 fixes; doc corrections | Bots that really race and fight back |
+| CP5b | ⏳ awaiting approval | Designer, Engineer, QA | Whack-a-Mole, Cocokkan Kartu, Tebak Lokasi, Ketapel 3D | Solo vs bots full match with all 7 minigames |
 | CP6 | ⏸ draft | Designer, Engineer, QA | Polish, mobile check, playtest, MVP build | MVP ready to play |

@@ -77,3 +77,15 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | Hard retune result | Hard `paceTargetMs` is 610 s. Casual vs 1 Hard wins 15.9%, vs 3 Hard 10.0%, with Hard medians of 7.7–8.9 min. Accepted. The margins are thin, so recheck in the CP6 playtest. |
 | Hard vs Normal 1v1 band | Relaxed to ≥ 65% with no upper limit (92% measured). Hard pulling well ahead of Normal is fine. |
 | Casual vs Easy/Normal win-rate bands | Missed (Normal is easier than designed: casual vs 1 Normal wins 67%). Accepted for the MVP, because C-1 is the priority there. The bands become report-only and are recalibrated after the CP6 playtest. |
+
+## CP5a QA follow-up (PM, 2026-11-17)
+
+| Topic | Decision |
+|---|---|
+| Engineer interpretations 1–8, `chooseCards` | All accepted, per the QA verdicts. `chooseCards` must be validated per sender on the server, like `autoCards` and `debug*`. |
+| Casual vs 1 Hard gate noise | Measure the win-rate gate at n ≥ 4000 (QA proposal). |
+| Hard pace window (600–620 s) | Accepted until the CP6 playtest. |
+| Hard overflow (10% of plays are wasted small boosts) | Leave as is. |
+| QA-CP5a-01 Tab leaves the Setup screen | Deferred to CP6 polish, together with QA-CP4b-01/02/03. |
+| bots.md / ui-flow sync (chooseCards, routeMistake wording, pending-sabotage observation, Copet order, paces, reference-human `afterWinMs`, new gates, Setup screen contents) | The Designer does this at the start of CP5b. |
+| Reference-human `afterWinMs` (casual 36–50 s) | Model assumption only. C-1 must be validated with real players in the CP6 playtest. |
