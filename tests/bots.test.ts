@@ -853,12 +853,13 @@ describe('13-14, 17. calibration and C-1 on fixed seeds (the full 1000-match gat
     }
   }, 120_000);
 
-  it('C-1: casual + 1/2/3 bots of every level: median match time in [10, 13] min and p95 <= 18 min (200 matches per cell)', () => {
+  it('C-1: casual + 1/2/3 Easy/Normal bots: median in [10, 13] min and p95 <= 18; vs Hard: median in [7, 9] (200 matches per cell)', () => {
     for (const level of LEVELS) {
       for (const k of [1, 2, 3]) {
         const r = runCell({ ...data(), seats: [humanSeat(), ...botSeats(level, k)] }, `c1:${level}:${k}`, 200, 1);
-        expect(r.medianMin, `${level} x${k} median ${r.medianMin.toFixed(2)}`).toBeGreaterThanOrEqual(10);
-        expect(r.medianMin, `${level} x${k}`).toBeLessThanOrEqual(13);
+        const [lo, hi] = level === 'hard' ? [7, 9] : [10, 13];
+        expect(r.medianMin, `${level} x${k} median ${r.medianMin.toFixed(2)}`).toBeGreaterThanOrEqual(lo);
+        expect(r.medianMin, `${level} x${k}`).toBeLessThanOrEqual(hi);
         expect(r.p95Min, `${level} x${k} p95`).toBeLessThanOrEqual(18);
         expect(r.rejected).toBe(0);
         expect(r.timedOut).toBe(0);

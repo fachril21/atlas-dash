@@ -75,7 +75,8 @@ if (ONLY === 'all' || ONLY === 'solo') {
 if (ONLY === 'all' || ONLY === 'c1' || ONLY === 'win') {
   const rows: unknown[] = [];
   log(`\n== Human vs bots: win rate of the human, and match time in minutes (${N} matches per cell) ==`);
-  log('human      bots        win%   band        time: median  p5   p95   C-1 median/p95   p5>=8');
+  log('(* = attentive/expert bands are report only)');
+  log('human      bots        win%   band        time: median  p5   p95   time gate (E/N: 10-13+p95<=18, H: 7-9)   p5>=8 (info)');
   for (const h of HUMANS) {
     for (const level of LEVELS) {
       for (const k of [1, 2, 3] as const) {
@@ -83,10 +84,11 @@ if (ONLY === 'all' || ONLY === 'c1' || ONLY === 'win') {
         const pct = r.winRate * 100;
         const band = k === 2 ? null : BANDS[h][level][k];
         const bandOk = band ? inBand(pct, band) : null;
-        const c1 = h === 'casual' ? r.medianMin >= 10 && r.medianMin <= 13 && r.p95Min <= 18 : null;
+        // Gate (PM, CP5a): casual vs Easy/Normal: median [10,13] and p95 <= 18; casual vs Hard: median [7,9]. p5 is reported only.
+        const c1 = h === 'casual' ? (level === 'hard' ? r.medianMin >= 7 && r.medianMin <= 9 : r.medianMin >= 10 && r.medianMin <= 13 && r.p95Min <= 18) : null;
         const p5ok = h === 'casual' ? r.p5Min >= 8 : null;
         log(
-          `${h.padEnd(10)} ${k} ${level.padEnd(7)} ${fmt(pct).padStart(5)}  ${band ? `${band[0]}-${band[1]}`.padEnd(8) : '-'.padEnd(8)} ${bandOk === null ? '   ' : bandOk ? 'OK ' : 'MISS'}  ${fmt(r.medianMin, 2).padStart(6)} ${fmt(r.p5Min, 1).padStart(5)} ${fmt(r.p95Min, 1).padStart(5)}  ${c1 === null ? '' : c1 ? 'OK  ' : 'MISS'}            ${p5ok === null ? '' : p5ok ? 'OK' : 'MISS'}`,
+          `${h.padEnd(10)} ${k} ${level.padEnd(7)} ${fmt(pct).padStart(5)}  ${band ? `${band[0]}-${band[1]}`.padEnd(8) : '-'.padEnd(8)} ${bandOk === null ? '   ' : h !== 'casual' ? (bandOk ? 'ok*' : 'out*') : bandOk ? 'OK ' : 'MISS'}  ${fmt(r.medianMin, 2).padStart(6)} ${fmt(r.p5Min, 1).padStart(5)} ${fmt(r.p95Min, 1).padStart(5)}  ${c1 === null ? '' : c1 ? 'OK  ' : 'MISS'}            ${p5ok === null ? '' : p5ok ? 'OK' : 'MISS'}`,
         );
         rows.push({ human: h, level, bots: k, ...r, winPct: pct, band, bandOk, c1, p5ok });
       }

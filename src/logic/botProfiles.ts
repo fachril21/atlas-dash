@@ -150,7 +150,7 @@ export const BOT_PROFILE: Readonly<Record<BotLevel, BotProfile>> = {
     copetMinHand: 3,
     copetMinGapMs: 60_000,
     gunungMinValid: 2,
-    paceTargetMs: 820_000,
+    paceTargetMs: 610_000,
   },
 };
 
