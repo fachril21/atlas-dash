@@ -55,3 +55,13 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | QA-CP4b-01/02/03 (tap outside, Esc back to Detail, initial focus) | Deferred to CP6 polish. |
 | Drag card onto progress row, number keys 1–5, card fly animation | Deferred to CP6. |
 | `autoCards` action | Like `debug*`, the server must reject it from clients before multiplayer. |
+
+## CP5a decisions (PM, 2026-11-17)
+
+| Topic | Decision |
+|---|---|
+| ★1 C-1 vs bot speed | The leader brake (`paceTargetMs`) plus `afterWinMs` 18–34 s is accepted. Bots are never sped up. If C-1 misses in simulation, tune `afterWinMs`/`paceTargetMs` first. If casual humans prove faster in CP6 playtests, the human-side levers (cooldown or minigame duration) come next. The race view must show a braking bot as "thinking", not frozen. |
+| ★2 Hard plays Payung/Cermin at once | Accepted. |
+| ★3 Bots answer offer/discard via the controller with atomic actions | Accepted. QA updates the CP4b #17 invariant to "a bot screen never stays open longer than 1 poll". Replay determinism must still hold. |
+| ★4 Normal/Hard bots target the leader | Accepted, with a playtest risk: the human as leader gets dog-piled, limited by cap 2. Levers: `copetMinGapMs`, `cardGapMs`, `gunungMinValid`. |
+| ★5/★6 calibration and route C dominance | Accepted. The numbers are provisional until QA simulation. Route variety is tested on synthetic maps. |

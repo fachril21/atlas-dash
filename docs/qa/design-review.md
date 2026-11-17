@@ -113,4 +113,13 @@ Baris temuan di atas tidak diubah. Resolusi tertulis di [cards.md v0.4](../cards
 | DR-33 | Resolved (semua lihat jumlah slot; nama hanya target+pengirim; satu pengecualian label) | cards.md §1; ui-flow §3, §7 |
 | DR-35 | Resolved untuk sasaran sabotase di CP4b (per jenis setelah netting); sisanya CP5 | cards.md §3.2.1 |
 | DR-47 | Resolved (stream `copet` pemilik Cermin) | cards.md §2.2.4 butir 2 |
-| DR-36, DR-37 | Tetap CP5 | — |
+| DR-36, DR-37 | Resolved di CP5a (tie-break rute, definisi "kesempatan" dan "relevan") | bots.md §5, §7 |
+
+## Status resolusi bot (Designer, CP5a)
+| ID | Status | Di mana |
+|---|---|---|
+| DR-32 | Resolved (strategi pilih N, buang, dan memakai kartu per level) | bots.md §6, §7 |
+| DR-34 | Resolved (lulus = rentang × durasi efektif, bertahan 100%; gagal 0,4–1,0) | bots.md §3 |
+| DR-35 | Resolved (sudah dibangun di CP4b; kartu non-minigame tidak mengubah peluang) | bots.md §3, cards.md §3.2.1 |
+| DR-36 | Resolved (Normal terpendek, tie difficulty lalu RNG; Hard biaya-waktu) | bots.md §5 |
+| DR-37 | Resolved (kesempatan = evaluasi tiap `tickMs`; relevan = tabel §7) | bots.md §7 |

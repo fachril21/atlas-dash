@@ -1,6 +1,6 @@
 # UI Flow + HUD
 
-**Status:** designed · **Updated:** 2026-11-16 (v0.3, CP4b: target picker §7, pause di layar kartu, visibilitas slot DR-33, DR-27) · Kembali ke [GDD](gdd.md) · Requirement: K1, K1.1, K2, R2, R9
+**Status:** designed · **Updated:** 2026-11-17 (v0.3.1, CP5a: hand maks Buang = 10 di §6; v0.3, CP4b: target picker §7, pause di layar kartu, visibilitas slot DR-33, DR-27) · Kembali ke [GDD](gdd.md) · Requirement: K1, K1.1, K2, R2, R9
 
 ## 1. Prinsip
 - **Screen stack:** layar penuh di-*replace* (Menu → Setup → Race → Hasil); overlay di-*push* di atas Race (Minigame, Kartu, Buang, Target picker, Pause) dan di-*pop* saat selesai. Hanya layar teratas menerima input, **kecuali tombol Pause**: tombol Pause selalu di atas modal apa pun (Penawaran, Buang, Detail, Target Picker) dan bisa ditekan; pause membekukan semua timer game termasuk timer 15 s layar kartu (keputusan PM, QA-CP4a-03).
@@ -93,7 +93,7 @@ Landscape di mobile tetap jalan: hand pindah ke kolom kanan, progres ke kiri ata
 - N = difficulty efektif ± Oleh-oleh/Pelit Hadiah, min 1 maks 5 ([cards.md §3.3](cards.md#33-jumlah-pilihan-n)).
 
 ## 6. Buang Kartu (K1.1)
-- Menampilkan semua kartu (hand lama + baru, maks 9: hand 5 + hard 3 + Oleh-oleh 1), kartu baru berlabel "BARU". Di mobile 9 kartu dibagi 2 baris.
+- Menampilkan semua kartu (hand lama + baru, maks **10**: hand 5 + hard 3 + Oleh-oleh 1, ditambah 1 kartu pantulan Copet yang masuk saat pemain main minigame, [cards.md §1](cards.md#1-aturan-dasar)), kartu baru berlabel "BARU" (kartu pantulan tidak berlabel). Di mobile 10 kartu dibagi 2 baris (QA 390×844: kartu 62×83 px, tombol Buang di y 500–548, Pause tetap bisa ditekan).
 - Judul: "Hand penuh! Buang 2 kartu". Tap = tandai buang (kartu miring + ikon tong sampah). Tombol **Buang** aktif bila sisa = 5.
 - Batas waktu 15 s; habis = kartu yang sudah ditandai tetap dibuang, kekurangannya diisi rarity terendah dulu, seri → paling lama di hand, kartu BARU paling akhir (DR-25, [cards.md §3.4](cards.md#34-layar-pilih-dan-layar-buang-timer-15-s-dr-25)).
 

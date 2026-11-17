@@ -1,6 +1,6 @@
 # Atlas Dash: Indonesia — Game Design Document
 
-**Version:** 0.3.3 · **Updated:** 2026-11-16 · **Status:** designed (MVP) · Sumber requirement: [requirements.md](requirements.md) (LOCKED) · Keputusan PM: [pm-decisions.md](pm-decisions.md) · [Features](#feature-index) · [Decisions](#decisions) · [Open questions](#open-questions)
+**Version:** 0.3.4 · **Updated:** 2026-11-17 · **Status:** designed (MVP) · Sumber requirement: [requirements.md](requirements.md) (LOCKED) · Keputusan PM: [pm-decisions.md](pm-decisions.md) · [Features](#feature-index) · [Decisions](#decisions) · [Open questions](#open-questions)
 
 ## Summary
 Balapan virtual real-time dari **Sabang ke Merauke**. Pemain maju region demi region dengan memenangkan minigame pendek (15–30 detik); tiap kemenangan memberi kartu untuk boost diri sendiri atau sabotase lawan. Pemain pertama yang **mencapai** region finish menang (R1); finish tidak punya minigame. MVP: solo vs 1–3 bot, preset Standard.
@@ -70,10 +70,10 @@ Bot tidak memainkan minigame secara visual; hasilnya diundi dari stream RNG `bot
 | Hard | 92% | 80% | 65% | 55–85% durasi |
 
   Modifier kartu memengaruhi bot lewat difficulty efektif (`difficultyShift`) dan ±8 poin persen per modifier lain (boost +, sabotase −), clamp 5–98%.
-- **Rute:** Easy acak di antara tetangga; Normal pilih rute dengan `remainingWins` terkecil; Hard memperhitungkan peluang lulusnya (expected time terkecil).
-- **Kartu:** Easy memakai kartu acak 30% di tiap kesempatan, target sabotase acak. Normal memakai kartu begitu relevan, sabotase ke pemimpin. Hard menyimpan Payung Tameng/Cermin Balik, menyabotase pemain dengan `remainingWins` terkecil, memakai Copet ke lawan dengan hand terbanyak, memakai Tiket Pesawat di region hard. Bot hanya memutuskan sekali tiap 2–4 s.
-- Bot mengikuti aturan yang sama: maks 5 kartu, cooldown, R6.1, batas sabotase.
-- **Comeback untuk bot (DR-32):** bot menerima penawaran dengan bobot tier yang sama dengan pemain ([cards.md §3.2](cards.md#32-aturan-cp4a-boost-only-sudah-dibangun-dan-tier-comeback-cp4b)). **CP4b:** bot menerima penawaran, memilih/membuang otomatis dengan aturan auto-pick/auto-buang, dan bisa disabotase/dicopet, tetapi belum memainkan kartu; efek sabotase ke peluang lulus bot: [cards.md §3.2.1](cards.md#321-bot-di-cp4b-dr-32). **CP5:** strategi pilih N (Easy acak, Normal/Hard prioritas rarity) dan memainkan kartu; bot memutuskan instan tanpa timer 15 s.
+- **Spek lengkap (CP5a): [bots.md](bots.md).** Ringkas: **Rute** Easy acak, Normal rute terpendek (15% salah pilih), Hard biaya-waktu terendah memakai peluang lulusnya; bot tidak pernah ganti target. **Kartu** Easy acak 30% per evaluasi (tiap 3–4 s); Normal memakai kartu begitu relevan dan menyabotase pemimpin; Hard menahan boost untuk saat sulit (`p_next ≤ 0,70`), Copet ke hand terbanyak, Gunung bila ≥ 2 lawan valid, Tiket Pesawat di region hard. Pertahanan (Payung/Cermin) dimainkan segera di Normal dan Hard (revisi dari "Hard menyimpan", lihat bots.md §13). Evaluasi kartu tiap 2–4 s.
+- **Rem pemimpin (C-1):** bot yang memimpin dan di depan jadwal (`paceTargetMs` Easy 14,5 / Normal 12,5 / Hard 11,5 menit) menunda Mulai supaya match tidak pecah di bawah 10 menit; bot yang tertinggal tidak pernah dipercepat ([bots.md §4](bots.md#4-rem-pemimpin-ritme-menjaga-c-1)).
+- Bot mengikuti aturan yang sama: maks 5 kartu, cooldown, R6.1, batas sabotase, tidak membaca info tersembunyi (DR-33).
+- **Comeback untuk bot (DR-32):** bot menerima penawaran dengan bobot tier yang sama dengan pemain ([cards.md §3.2](cards.md#32-aturan-cp4a-boost-only-sudah-dibangun-dan-tier-comeback-cp4b)); pilih N dan buang per level: [bots.md §6](bots.md#6-penawaran-dan-buang-dr-32). Efek sabotase ke peluang lulus bot: [cards.md §3.2.1](cards.md#321-bot-di-cp4b-dr-32).
 
 ## Feature index
 
@@ -84,7 +84,7 @@ Bot tidak memainkan minigame secara visual; hasilnya diundi dari stream RNG `bot
 | Peta Indonesia + format peta | designed | MVP | DAG 10 region, 3 titik cabang, rute 5–6 region, finish tanpa minigame, JSON map-agnostic di `public/maps/<id>/` | [map-indonesia.md](map-indonesia.md) |
 | UI flow + HUD | designed | MVP | Semua layar, HUD race, hand kartu, target picker, layout mobile | [ui-flow.md](ui-flow.md) |
 | Art style | designed | MVP | Low-poly chibi, warna cerah, diorama mainan | [art-style.md](art-style.md) |
-| Bot | designed | MVP | Simulasi hasil minigame per level, rute & kartu | [gdd.md](#bot-b1b3) |
+| Bot | designed | MVP | Simulasi hasil minigame per level, rute, kartu, penawaran, rem pemimpin (C-1), target win rate | [bots.md](bots.md) · [ringkas](#bot-b1b3) |
 | Preset Short/Long | idea | later | Start/finish berbeda per preset di JSON peta | [map-indonesia.md](map-indonesia.md#6-format-data-peta-map-agnostic) |
 | Multiplayer room code (≤4) | idea | later | Colyseus, server authoritative | — |
 | Peta Jepang | idea | later | JSON peta kedua | — |
@@ -98,7 +98,8 @@ Sumber kebenaran: [checkpoints.md](checkpoints.md). (Milestone lama M1–M3 diha
 | CP3b | Sisa temuan QA should-fix; Simon + Hindari Rintangan (3D) | Framework minigame 2D + 3D terbukti |
 | CP4a | 20 kartu sebagai data + interpreter, penawaran pilih-N-dari-5 boost-only, hand 5 + layar buang, timer 15 s, hanya boost aktif | Loop kartu boost lengkap |
 | CP4b | Sabotase, target picker, batas 2, Copet, Payung/Cermin, bobot comeback (spek: [cards.md](cards.md) v0.4) | Loop kartu lengkap |
-| CP5 | Bot 3 level, sisa minigame | Match penuh solo vs bot |
+| CP5a | Bot pintar 3 level ([bots.md](bots.md)): rute, kartu, penawaran, rem pemimpin | Bot memainkan loop kartu penuh; win rate dan C-1 masuk band |
+| CP5 (sisa) | Sisa minigame | Match penuh solo vs bot |
 | CP6 | Polish, cek mobile, playtest (durasi median ≈ 10–13 menit), build MVP | MVP siap dimainkan |
 
 ## Decisions
@@ -125,6 +126,9 @@ Sumber kebenaran: [checkpoints.md](checkpoints.md). (Milestone lama M1–M3 diha
 | D-018 | 2026-11-16 | Milestone M1–M3 diganti rencana checkpoint CP3a–CP6 (DR-39) | Pertahankan M1–M3 | Satu rencana, tanpa bentrok id requirement | GDD |
 | D-019 | 2026-11-16 | Sabotase CP4b: target tanpa slot/`maxStacks`/hand tidak valid, kartu tidak hangus; slot ditahan sampai percobaan selesai; pantulan tidak dipantulkan lagi; Copet seragam acak dari hand ([cards.md §2.2](cards.md#22-resolusi-sabotase-cp4b)). Usulan Designer, PM to confirm bagian ★ | Kartu hangus bila target penuh; slot dilepas saat Mulai | Tidak ada kartu terbuang tanpa sebab; aturan sederhana untuk logic dan test | kartu, UI, bot |
 | D-020 | 2026-11-16 | Comeback: `gap = remainingWins(pemain) − min(semua pemain)`, tier 0 / 1–2 / 3–4 / ≥5, dihitung pada tick win; berlaku untuk bot ([cards.md §3.2](cards.md#32-aturan-cp4a-boost-only-sudah-dibangun-dan-tier-comeback-cp4b)) | Peringkat posisi (#1–#4) | Satuan sama dengan HUD, tidak bergantung jumlah pemain | kartu, bot |
+| D-021 | 2026-11-17 | Bot: rem pemimpin (`paceTargetMs`) menjaga median match 10–13 menit; bot tidak pernah dipercepat. Usulan Designer, ★ PM ([bots.md §13](bots.md#13-keputusan-dan--untuk-pm)) | Turunkan pass chance bot; batas bawah waktu selesai keras | Tabel pass chance yang disetujui membuat Normal/Hard lebih cepat dari pemain kasual, C-1 pecah | bot, durasi |
+| D-022 | 2026-11-17 | Rute bot: Easy acak, Normal terpendek (15% salah), Hard biaya-waktu terendah; tanpa ganti target dan tanpa crowding. Info tersembunyi tidak dibaca (DR-33) | Hard juga menghindari region ramai | Crowding tidak berefek mekanik (R6.1) | bot |
+| D-023 | 2026-11-17 | Normal/Hard memainkan Payung/Cermin segera (revisi "Hard menyimpan"); Hard menahan boost percobaan sampai `p_next ≤ 0,70`. Usulan Designer, ★ PM | Hard menyimpan pertahanan | Kartu aktif tidak bisa dicopet dan tidak terlihat | bot, kartu |
 
 ## Open questions
 Semua keputusan CP2–CP3a tercatat di [Decisions](#decisions) dan [pm-decisions.md](pm-decisions.md). Temuan QA should-fix/nit yang belum dikerjakan dijadwalkan di CP3b/CP4/CP5/CP6 sesuai kolom CP di [qa/design-review.md](qa/design-review.md). Di CP3b sudah dikerjakan untuk Simon dan Hindari Rintangan: DR-16, DR-17, DR-19, DR-20, DR-44, plus aturan undian pool 3 minigame (DR-02, [minigames.md §1.3](minigames.md#13-pemilihan-minigame-m2-dan-percobaan-ulang-dr-02)). Satu hal menunggu PM:
@@ -145,6 +149,7 @@ Semua keputusan CP2–CP3a tercatat di [Decisions](#decisions) dan [pm-decisions
 - (b) Copet terasa menyebalkan bila dipakai berkali-kali oleh bot: pantau di playtest; tuas tuning = rarity (sekarang rare) dan perilaku bot.
 
 ## Change log
+**0.3.4 (2026-11-17):** CP5a: [bots.md](bots.md) v0.1 (simulasi, rute, kartu, penawaran, rem pemimpin, target win rate, kriteria QA); bagian Bot diringkas; D-021–D-023; koreksi cards.md v0.5 dari QA follow-up CP4b.
 **0.3.3 (2026-11-16):** CP4b: cards.md v0.4 + ui-flow §7 (target picker, cap 2, Cermin/Payung/Copet, bobot comeback, kriteria QA); D-019, D-020; Bot comeback (DR-32); pause di layar kartu.
 **0.3.2 (2026-11-16):** CP4a: cards.md v0.3 (DR-16, DR-23, DR-25, DR-26, DR-30, DR-31, DR-40, DR-48; penawaran boost-only; CP4 dipecah CP4a/CP4b).
 **0.1 (2026-11-16):** draft pertama MVP (GDD + 5 dokumen fitur).

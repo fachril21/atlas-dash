@@ -1,6 +1,6 @@
 # Kartu — Spesifikasi MVP
 
-**Status:** designed · **Updated:** 2026-11-16 (v0.4, CP4b: DR-24, DR-27, DR-28, DR-29, DR-32, DR-33, DR-35 (bagian bot), DR-47; target picker, cap 2, urutan Cermin/Payung, Copet, bobot comeback, kriteria QA di §8) · Kembali ke [GDD](gdd.md) · Requirement: R3 (+ pengecualian Copet), R8, R9, K1, K1.1, K2, K3, Q2, Q4
+**Status:** designed · **Updated:** 2026-11-17 (v0.5, CP5a: koreksi hand maks 10, Gunung per target, kartu terbakar ke `discarded` pengirim, alasan redup §2.2.1 sesuai build, toleransi §8 #16, `autoCards` ditolak server; strategi bot pindah ke [bots.md](bots.md). v0.4, CP4b: DR-24, DR-27, DR-28, DR-29, DR-32, DR-33, DR-35 (bagian bot), DR-47; target picker, cap 2, urutan Cermin/Payung, Copet, bobot comeback, kriteria QA di §8) · Kembali ke [GDD](gdd.md) · Requirement: R3 (+ pengecualian Copet), R8, R9, K1, K1.1, K2, K3, Q2, Q4
 
 20 kartu (K3): 11 boost, 9 sabotase. Kartu adalah **data**; satu interpreter efek menjalankan daftar `ops` (lihat §4). Tabel §2 adalah sumber kebenaran angka; `cards.json` di kode dibuat dari tabel ini.
 
@@ -15,7 +15,7 @@
 | Hand maksimal (R9) | 5 kartu. Duplikat kartu yang sama boleh |
 | Dapat kartu (K1) | Menang minigame → ditawari 5 kartu acak, pilih N: easy 1 / medium 2 / hard 3 (difficulty **efektif**, D-002 di [GDD](gdd.md#decisions)). Rumus N lengkap di §3.3 |
 | Batas waktu layar kartu (Q4) | Layar pilih dan layar buang masing-masing 15 s, lalu auto-pick (aturan pasti di §3.4) |
-| Hand > 5 (K1.1) | Layar buang: pilih kartu yang dibuang sampai sisa 5 (boleh membuang kartu yang baru diambil). Tidak bisa ditutup sebelum ≤ 5. Hand maks sebelum buang = 5 + N maks 4 = **9** (hard 3 + Oleh-oleh 1) |
+| Hand > 5 (K1.1) | Layar buang: pilih kartu yang dibuang sampai sisa 5 (boleh membuang kartu yang baru diambil). Tidak bisa ditutup sebelum ≤ 5. Hand maks yang bisa tampil di layar Buang = **10**: hand 5 + N maks 4 (hard 3 + Oleh-oleh 1) = 9, ditambah 1 kartu hasil pantulan Copet yang masuk saat pemain sedang main minigame (§2.2.4 butir 6, layar Buang ditunda). Layar Buang 10 kartu terverifikasi QA bisa dipakai di 390×844 (2 baris) |
 | Kapan boleh main kartu | Kapan saja selama pemain berada di race view: sebelum menekan Mulai, saat cooldown, saat animasi jalan (pengecualian: Tiket Pesawat, lihat barisnya). **Tidak** saat minigame sendiri berjalan, intro, atau layar kartu/buang |
 | Kartu instan | Efek langsung (Kopi Tubruk, Tiket Pesawat, Copet) |
 | Kartu "minigame berikutnya" | Disimpan sebagai *pending* di pemain target. **Snapshot per percobaan (DR-48):** saat pemain menekan **Mulai**, semua pending `next_minigame` miliknya diterapkan ke percobaan itu. Setelah percobaan selesai (menang atau gagal) kartu itu **habis**, dengan atau tanpa efek bersyarat (§1.1). Kartu yang dimainkan saat cooldown ikut ke percobaan ulang (snapshot baru). Bila target sedang main, efek menunggu minigame setelahnya (R3) |
@@ -93,7 +93,7 @@ Lawan `T` valid untuk kartu sabotase `C` bila **semua** ini benar (dihitung dari
 | 3 | Bukan Copet: slot sabotase `T` < 2 (Q2) | "Penuh" |
 | 4 | Bukan Copet: jumlah salinan `C.id` di `pending` `T` < `C.maxStacks` | "Sudah kena kartu ini" |
 
-- **Kartu bisa dimainkan** (tidak redup) bila ≥ 1 lawan valid. Bila tidak ada: kartu redup 50%, tetap di hand, alasan di detail: "Semua lawan penuh" / "Semua lawan sudah kena kartu ini" / "Semua lawan hand kosong" (Copet) / "Tidak ada lawan" (alasan terakhir yang gagal pada lawan peringkat 1; bila beragam, "Tidak ada lawan yang bisa dikenai").
+- **Kartu bisa dimainkan** (tidak redup) bila ≥ 1 lawan valid. Bila tidak ada: kartu redup 50%, tetap di hand, dengan alasan di detail (aturan seperti dibangun): bila **semua** lawan gagal karena alasan yang **sama** → "Semua lawan penuh" / "Semua lawan sudah kena kartu ini" / "Semua lawan hand kosong" (Copet); bila tidak ada lawan sama sekali → "Tidak ada lawan"; bila alasannya **campuran** → "Tidak ada lawan yang bisa dikenai".
 - **Tanpa target valid = tidak bisa dimainkan, bukan hangus.** Kartu tidak pernah terbuang karena tidak ada sasaran.
 - **Gunung Meletus** (`all_opponents`): bisa dimainkan bila ≥ 1 lawan valid (syarat 1, 3, 4 per lawan, DR-29). Lawan tidak valid dilewati (tidak kena, tidak menghabiskan Payung/Cermin mereka). Konfirmasi menyebut dampaknya: "Kena 2 dari 3 lawan (Bot 3 penuh)".
 - **Kapan syarat dicek:** (a) saat menentukan redup/tidak, (b) saat picker terbuka (baris redup/tidak), (c) **sekali lagi saat konfirmasi di logic**. Bila (c) gagal (mis. target baru penuh sejak picker dibuka): tidak ada yang berubah, kartu tetap di hand, picker menampilkan toast "Bot 2: Penuh" dan baris itu redup.
@@ -106,7 +106,9 @@ Lawan `T` valid untuk kartu sabotase `C` bila **semua** ini benar (dihitung dari
    a. Target punya `cermin_balik` aktif → **pantul** (§2.2.3), Cermin habis.
    b. Selain itu, target punya `payung_tameng` aktif → **tangkal**: kartu sabotase hangus, Payung habis.
    c. Selain itu → kartu masuk `pending` target (Copet: dieksekusi langsung, §2.2.4).
-4. Kartu yang sudah tidak punya tujuan (ditangkal/hangus/Copet selesai) → `discarded`.
+4. Kartu yang sudah tidak punya tujuan (ditangkal/hangus/Copet selesai) → `discarded` **milik pengirim** kartu (juga untuk salinan Gunung tambahan yang ditangkal dan pantulan yang terbakar). Tidak ada zona lain.
+
+**Gunung Meletus (instance per target):** instance asli dari hand dipakai untuk target pertama (urutan seat); untuk **tiap target tambahan** logic membuat **instance baru** (`uid` baru, `defId` sama, `source` = pengirim) supaya `uid` di `pending` tetap unik dan tiap instance berada di tepat satu zona. Jumlah instance baru = jumlah target − 1; ini bukan pelanggaran invarian zona.
 Cermin dicek sebelum Payung hanya demi urutan pasti; karena maks 1 kartu pertahanan aktif (DR-40), keduanya tidak pernah aktif bersamaan pada satu pemain.
 
 #### 2.2.3 Pantulan dan tangkalan (DR-28), tabel interaksi
@@ -209,6 +211,8 @@ Contoh Indonesia (total 8 win; 1 region = 2 win): empat pemain di `remainingWins
 - Titik awal untuk playtest; `gap` ≥ 5 dan ≥ 3 adalah tuas tuning pertama.
 
 ### 3.2.1 Bot di CP4b (DR-32)
+**CP5:** strategi bot memilih N, membuang, dan memainkan kartu (juga pemilihan target) ada di [bots.md](bots.md) §6–§7; bagian di bawah tetap berlaku untuk aturan penerimaan dan efek ke peluang lulus.
+
 Bot **belum memainkan kartu** (CP5) tetapi sudah memenuhi aturan penerimaan dan jadi sasaran:
 - **Penawaran:** tiap win bot yang bukan win penentu menghasilkan penawaran dengan `tierWeights(bot)` dari stream `cards` bot. Pilih N dan buang **seketika** (tanpa layar dan timer) memakai aturan auto-pick dan auto-buang §3.4 (deterministik, tanpa RNG). Hand bot tetap ≤ 5. Strategi pilihan bot Easy/Normal/Hard (acak vs prioritas) adalah CP5.
 - **Dikenai sabotase:** bot punya slot sabotase (Q2) dan pending seperti pemain. Saat bot memulai percobaan (snapshot), efek dihitung ke peluang lulus ([gdd.md Bot](gdd.md#bot-b1b3)): `difficultyShift` lewat difficulty efektif; modifier lain **per jenis setelah netting** ±8 poin persen (DR-35): `timeDelta` > 0, `tolerance`, `hint` = +8; `timeDelta` < 0, `speed`, `extraTarget`, `fog` = −8; clamp 5–98%. `Macet Total` (cooldown +6 saat gagal) dan `Pelit Hadiah` (N −1 saat menang) berlaku normal.
@@ -224,6 +228,7 @@ Bot **belum memainkan kartu** (CP5) tetapi sudah memenuhi aturan penerimaan dan 
 - **Waktu kedaluwarsa eksak (QA-CP4a-01):** layar punya `expiresAtMs = openedAtMs + 15000` pada jam game. Timeout diproses **pada `expiresAtMs`**, bukan pada waktu tick yang menangkapnya, sehingga tick besar atau tick yang digabung tidak mengubah hasil. Layar berikutnya dalam rantai (Penawaran → Buang) memiliki `openedAtMs = expiresAtMs` layar sebelumnya bila sebelumnya habis waktu, atau waktu aksi pemain bila ia menekan Ambil. Replay `actionLog` harus menghasilkan state identik.
 - Hasil auto-pick/auto-buang sama persis untuk state yang sama (tidak memakai RNG).
 - **Akhir match:** kartu di layar penawaran yang terbuka dipindah `offer → discarded` (QA-CP4a-02), sehingga tiap instance tetap di tepat satu zona.
+- **Aksi khusus server (keputusan PM, QA follow-up CP4b):** sebelum multiplayer, server **menolak dari klien** semua aksi `debug*` **dan** `autoCards` (klien bisa memaksa auto-pick lebih awal dari 15 s). Server sendiri yang mengeluarkan `autoCards` saat timeout. Di solo, bot dan timer lokal masih boleh memakainya.
 
 ## 4. Format data (untuk interpreter)
 
@@ -287,7 +292,7 @@ Contoh:
 
 Nama dan deskripsi lewat string key (`card.jam_pasir.name`) supaya bisa dilokalkan; peta lain boleh me-reskin nama/ikon kartu lewat `map.cardSkins` (opsional, lihat [map-indonesia.md](map-indonesia.md#6-format-data-peta-map-agnostic)).
 
-**Invarian yang perlu dites:** tiap instance kartu punya id unik dan ada di tepat satu zona (`offer`, `hand`, `limbo`, `pending`, `discarded`; kartu snapshot tetap di `pending` sampai percobaan selesai, lalu `discarded`); hand ≤ 5 setiap kali layar buang ditutup; seed sama → penawaran sama; penawaran tak punya id kembar dan berukuran min(5, |pool|); kartu bersyarat selalu habis setelah 1 percobaan; Copet memindahkan instance tanpa menduplikasi (CP4b).
+**Invarian yang perlu dites:** tiap instance kartu punya id unik dan ada di tepat satu zona (`offer`, `hand`, `limbo`, `pending`, `discarded`; kartu snapshot tetap di `pending` sampai percobaan selesai, lalu `discarded`); hand ≤ 5 setiap kali layar buang ditutup; seed sama → penawaran sama; penawaran tak punya id kembar dan berukuran min(5, |pool|); kartu bersyarat selalu habis setelah 1 percobaan; Copet memindahkan instance tanpa menduplikasi (CP4b); Gunung Meletus membuat tepat (target − 1) instance baru (§2.2.2).
 
 ## 5. Pemetaan boost ke minigame yang sudah dibangun (CP4a)
 
@@ -358,7 +363,7 @@ Tiap butir harus lulus lewat tes logic (Vitest) kecuali ditandai UI (Playwright)
 13. **Copet RNG:** seed sama → kartu curian sama; sebaran uniform atas hand 5 kartu (10.000 percobaan, tiap kartu 20% ± 3 poin); instance berpindah tanpa duplikat; `handSeq` baru; stream `copet` pantulan milik pemilik Cermin.
 14. **Copet hand:** hand pencuri ≤ 5 setelah mencuri; hand target 5 + pantulan → layar Buang; hand pengirim kosong → pantulan tanpa efek.
 15. **DR-27:** Copet saat target punya Detail/Picker/Buang/Penawaran terbuka mengikuti tabel §2.2.5; layar Buang menutup otomatis saat wajib buang jadi 0; timer tidak direset.
-16. **Comeback:** `tierWeights` mengembalikan baris tabel §3.2 persis untuk gap 0, 1, 2, 3, 4, 5, 9; `gap` dihitung pada tick win dengan memakai semua pemain; jaminan rare+ 100% di tier gap ≥ 3 (10.000 seed, pool 20); rata-rata jumlah rare+ per penawaran naik monoton menurut tier; sebaran rarity per slot dalam ± 4 poin dari bobot.
+16. **Comeback:** `tierWeights` mengembalikan baris tabel §3.2 persis untuk gap 0, 1, 2, 3, 4, 5, 9; `gap` dihitung pada tick win dengan memakai semua pemain; jaminan rare+ 100% di tier gap ≥ 3 (10.000 seed, pool 20); rata-rata jumlah rare+ per penawaran naik monoton menurut tier; sebaran rarity per slot dalam ± 4 poin dari bobot untuk slot 1–4, dan ± 7 poin untuk slot 5 (pada tier berjaminan, gap ≥ 3, jaminan rare+ §3.1 langkah 3 mengganti slot 5 lebih dulu; terukur QA: common 49,8% vs 55% di gap 3–4).
 17. **Bot:** menerima penawaran dengan bobot tier-nya, hand ≤ 5, tidak memainkan kartu; sabotase pending dipakai di percobaan bot (peluang lulus ±8 per jenis, clamp 5–98%); Macet dan Pelit berlaku pada bot; bot bisa jadi target Copet bila hand ≥ 1.
 18. **Pause (UI):** tombol Pause bisa diklik di atas layar Penawaran, Buang, Detail, Picker; pause membekukan timer 15 s (sisa tetap utuh setelah jeda 100 s), bot, dan cooldown.
 19. **Zona kartu:** fuzz (aksi sabotase, Copet, pantulan, layar kartu) menjaga tiap instance di tepat satu zona; akhir match memindah kartu `offer` ke `discarded` (QA-CP4a-02).
