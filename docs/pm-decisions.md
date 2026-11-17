@@ -65,3 +65,12 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | ★3 Bots answer offer/discard via the controller with atomic actions | Accepted. QA updates the CP4b #17 invariant to "a bot screen never stays open longer than 1 poll". Replay determinism must still hold. |
 | ★4 Normal/Hard bots target the leader | Accepted, with a playtest risk: the human as leader gets dog-piled, limited by cap 2. Levers: `copetMinGapMs`, `cardGapMs`, `gunungMinValid`. |
 | ★5/★6 calibration and route C dominance | Accepted. The numbers are provisional until QA simulation. Route variety is tested on synthetic maps. |
+
+## CP5a: C-1 vs Hard bots (fachril chose the PM recommendation, 2026-11-17)
+
+| Topic | Decision |
+|---|---|
+| C-1 scope | The 10–13 min median applies to matches vs **Easy and Normal** bots only. Matches vs **Hard** may be shorter, with a target median of **~7–9 min**. Hard bots are fast and really challenging, and losing to them ends the match early. |
+| Hard tuning | Retune Hard `paceTargetMs` (and `afterWinMs` if needed) so that the casual human win rate vs 1 Hard is in 15–35% and vs 3 Hard in 3–12%, with the median match time vs Hard in [7, 9] min. Hard must still beat Normal 1v1 at 65–80%. |
+| C-1 p5 gate | Replaced. The gate is median and p95 (p95 ≤ 18 min). p5 is reported only, because it can't exceed the casual solo p5. |
+| Attentive/expert bands | Report only; recalibrate after the CP6 playtest. |
