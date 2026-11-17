@@ -103,3 +103,15 @@ Resolutions for QA design-review blockers (docs/qa/design-review.md). The design
 | CP5b Engineer interpretations 1–7 | Accepted. The Ketapel placement change (200 tries plus the clear-path rule) must be written into minigames.md §6 at the next Designer pass. |
 | Casual reference `afterWinMs` 36–50 → 32–46 s | Accepted only as a change to the *model*, not to the game. The gates G3/G4 now pass partly because the reference human was refitted. Real C-1 and Hard win rates must be validated with real players in the CP6 playtest. bots.md §9 gets synced at the next Designer pass. |
 | `debugForceMinigame` | Debug only. The server must reject it, like the other `debug*` actions. |
+
+## CP5b QA follow-up (PM, 2026-11-17)
+
+| Topic | Decision |
+|---|---|
+| Engineer interpretations 1–7 | All accepted, per the QA verdicts. Doc notes for §6 (the last placement try is accepted as is; `timeTakenMs` = hit sample time) go to the CP6 Designer pass. |
+| QA-CP5b-01 Pause covered by the minigame overlay | Fix first in CP6: Pause sits above the minigame overlay, the same rule as the card modals. |
+| QA-CP5b-02 Tambah Beban weak in Whack medium/hard | Fix in CP6: hits +3 per count. Verify that it's harder at all difficulties. |
+| QA-CP5b-03 Ketapel drag scale | Fix in CP6: `maxDragPx = 0.25 × max(width, height)`. Keep `hitRadiusM` hard at 0.8 until there's phone data. |
+| QA-CP5b-04 Ngebut in Cocokkan Kartu has almost no effect | Fix in CP6: Ngebut shortens the duration (30 → 24 s), like Ketapel. |
+| QA-CP5b-05 Kabut in Ketapel barely visible | Check in the CP6 playtest; strengthen it if it really is too weak. |
+| Hard median margin 0.10 min | Accept until the CP6 playtest. Don't touch `BOT_PASS_CHANCE`. |
