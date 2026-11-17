@@ -37,6 +37,14 @@ export interface CardsCallbacks {
   onConfirm(): void;
 }
 
+function setText(el: HTMLElement, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
+}
+
+function setAttr(el: HTMLElement, name: string, value: string): void {
+  if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+}
+
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 }
@@ -61,6 +69,9 @@ export class CardsUi {
   /** Card whose target picker (opponent sabotage) or Gunung confirmation is open. */
   private pickerUid: string | null = null;
   private confirmUid: string | null = null;
+  /** QA-CP4b-04: the picker DOM is built once per open card; rows are updated in place. */
+  private pickerDomUid: string | null = null;
+  private readonly pickerRows = new Map<string, HTMLButtonElement>();
   private state: Readonly<GameState> | null = null;
   private toasts: { text: string; until: number; tone: 'good' | 'bad' | 'info' }[] = [];
 
@@ -290,38 +301,97 @@ export class CardsUi {
     }
   }
 
+  /**
+   * QA-CP4b-04: the picker is built once per open card and then updated per node (text, classes,
+   * attributes), never by replacing innerHTML. A row that lives under a touch keeps its DOM node,
+   * so the browser still delivers the click while bots change state around it.
+   */
   private renderPicker(state: Readonly<GameState>, me: PlayerState): void {
     const card = this.pickerUid ? me.hand.find((c) => c.uid === this.pickerUid) : undefined;
     if (!card) {
+      if (this.pickerDomUid !== null) {
+        this.pickerDomUid = null;
+        this.pickerRows.clear();
+        this.el.picker.replaceChildren();
+      }
       this.el.picker.hidden = true;
-      this.patch(this.el.picker, '');
       return;
     }
     const def = getCard(card.defId);
+    if (this.pickerDomUid !== card.uid) {
+      this.pickerDomUid = card.uid;
+      this.pickerRows.clear();
+      this.el.picker.innerHTML = `<div class="card-screen picker">
+        <h2 data-testid="picker-title">${t('picker.title', { card: esc(t(def.nameKey)) })}</h2>
+        <div class="picker-list"></div>
+        <button class="picker-cancel" data-card-action="picker-cancel" data-testid="btn-picker-cancel">${t('picker.cancel')}</button></div>`;
+    }
+    this.el.picker.hidden = false;
+    const list = this.el.picker.querySelector('.picker-list') as HTMLElement;
     const checks = new Map(opponentChecks(state, me, def).map((c) => [c.id, c.check] as const));
     const order = ranking(state);
-    const rows = order.filter((p) => p.id !== this.humanId).map((p) => {
+    const opponents = order.filter((p) => p.id !== this.humanId);
+    opponents.forEach((p, index) => {
       const check = checks.get(p.id);
       const ok = !!check?.ok;
-      const label = check && !check.ok && check.label ? t(`target.label.${check.label}`) : '';
+      const labelText = check && !check.ok && check.label ? t(`target.label.${check.label}`) : '';
       const rank = order.findIndex((q) => q.id === p.id) + 1;
       const sent = p.pending.filter((c) => c.source === this.humanId && getCard(c.defId).type === 'sabotage');
-      return `<button class="picker-row${ok ? '' : ' dim'}" data-card-action="pick" data-target="${p.id}" data-valid="${ok}" data-testid="picker-row-${p.id}" ${ok ? '' : 'disabled'}>
-        <span class="dot" style="background:${PLAYER_CSS_COLORS[p.colorIndex % PLAYER_CSS_COLORS.length]}"></span>
-        <span class="prank" data-testid="picker-rank-${p.id}">#${rank}</span>
-        <span class="pname">${esc(p.name)}</span>
-        ${rank === 1 ? `<span class="pleader">${t('picker.leader')}</span>` : ''}
-        <span class="pmeta">${t('race.winsLeft', { n: p.remainingWins })} · <span title="${statusText(state, p)}">${statusIcon(state, p)}</span> · ${t('picker.cards', { n: p.hand.length })} · <span data-testid="picker-slots-${p.id}">${slotDots(sabotageSlotsUsed(p))}</span></span>
-        ${label ? `<span class="plabel" data-testid="picker-label-${p.id}">${esc(label)}</span>` : ''}
-        ${sent.length ? `<span class="psent" title="${t('picker.sent')}">${sent.map((c) => `${getCard(c.defId).icon} ${esc(t(getCard(c.defId).nameKey))}`).join(', ')}</span>` : ''}
-      </button>`;
+      const sentText = sent.map((c) => `${getCard(c.defId).icon} ${t(getCard(c.defId).nameKey)}`).join(', ');
+      let row = this.pickerRows.get(p.id);
+      if (!row) {
+        const btn = document.createElement('button');
+        btn.className = 'picker-row';
+        btn.dataset.cardAction = 'pick';
+        btn.dataset.target = p.id;
+        btn.dataset.testid = `picker-row-${p.id}`;
+        btn.innerHTML = `<span class="dot" style="background:${PLAYER_CSS_COLORS[p.colorIndex % PLAYER_CSS_COLORS.length]}"></span>
+          <span class="prank" data-testid="picker-rank-${p.id}"></span>
+          <span class="pname">${esc(p.name)}</span>
+          <span class="pmeta"><span class="pm-wins"></span> · <span class="pm-status"></span> · <span class="pm-cards"></span> · <span data-testid="picker-slots-${p.id}"></span></span>`;
+        row = btn;
+        this.pickerRows.set(p.id, btn);
+      }
+      // Keep rows in ranking order, moving a node only when its position actually changed.
+      if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
+      setAttr(row, 'data-valid', String(ok));
+      row.disabled = !ok;
+      row.classList.toggle('dim', !ok);
+      const q = (sel: string) => row.querySelector(sel) as HTMLElement;
+      setText(q('.prank'), `#${rank}`);
+      setText(q('.pm-wins'), t('race.winsLeft', { n: p.remainingWins }));
+      setText(q('.pm-status'), statusIcon(state, p));
+      setAttr(q('.pm-status'), 'title', statusText(state, p));
+      setText(q('.pm-cards'), t('picker.cards', { n: p.hand.length }));
+      setText(q(`[data-testid="picker-slots-${p.id}"]`), slotDots(sabotageSlotsUsed(p)));
+      this.optionalChild(row, 'pleader', rank === 1 ? t('picker.leader') : '', q('.pmeta'));
+      this.optionalChild(row, 'plabel', labelText, null, `picker-label-${p.id}`);
+      this.optionalChild(row, 'psent', sentText, null, undefined, t('picker.sent'));
     });
-    const html = `<div class="card-screen picker">
-      <h2 data-testid="picker-title">${t('picker.title', { card: esc(t(def.nameKey)) })}</h2>
-      <div class="picker-list">${rows.join('')}</div>
-      <button class="picker-cancel" data-card-action="picker-cancel" data-testid="btn-picker-cancel">${t('picker.cancel')}</button></div>`;
-    this.el.picker.hidden = false;
-    this.patch(this.el.picker, html);
+    for (const [id, row] of this.pickerRows) {
+      if (!opponents.some((p) => p.id === id)) {
+        row.remove();
+        this.pickerRows.delete(id);
+      }
+    }
+  }
+
+  /** A span that exists only while it has text (so the DOM matches the old template exactly). */
+  private optionalChild(row: HTMLElement, cls: string, text: string, before: HTMLElement | null, testid?: string, title?: string): void {
+    let el = row.querySelector<HTMLElement>(`:scope > .${cls}`);
+    if (!text) {
+      el?.remove();
+      return;
+    }
+    if (!el) {
+      el = document.createElement('span');
+      el.className = cls;
+      if (testid) el.dataset.testid = testid;
+      if (title) el.title = title;
+      if (cls === 'pleader') row.insertBefore(el, before);
+      else row.appendChild(el);
+    }
+    setText(el, text);
   }
 
   private renderDetail(state: Readonly<GameState>, me: PlayerState): void {

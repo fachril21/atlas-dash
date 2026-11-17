@@ -4,6 +4,7 @@
  * submit actions through the human controller.
  *
  * URL params: ?seed=<uint32|0xhex>  ?debug=1  ?bots=1..3  ?botLevel=easy|normal|hard
+ * (with ?bots or ?botLevel the Setup Bot screen is skipped; without them it opens first, preselected 3 bots / Normal)
  */
 import {
   canStartAttempt,
@@ -15,7 +16,7 @@ import {
   MapValidationError,
   minigamePool,
   MINIGAME_LOGIC,
-  PlaceholderBotController,
+  SmartBotController,
   selectableTargets,
   type BotLevel,
   type GameEvent,
@@ -34,6 +35,7 @@ import { CardsUi } from './ui/cardsUi';
 import { Hud } from './ui/hud';
 import { MinigameHost } from './ui/minigameHost';
 import { PointerInput, type InputIntent } from './ui/pointerInput';
+import { SetupScreen } from './ui/setup';
 import './style.css';
 
 const HUMAN_ID = 'p1';
@@ -48,6 +50,8 @@ const DEBUG = params.get('debug') === '1';
 const SEED_PARAM = parseSeed(params.get('seed'));
 const BOT_COUNT = clampInt(Number(params.get('bots') ?? 3), 1, 3);
 const BOT_LEVEL: BotLevel = (['easy', 'normal', 'hard'] as const).find((l) => l === params.get('botLevel')) ?? 'normal';
+/** The Setup Bot screen (B1/B3) opens first unless the URL already fixes the bots (tests, shared links). */
+const SKIP_SETUP = params.has('bots') || params.has('botLevel');
 
 function parseSeed(s: string | null): number | null {
   if (s === null || s.trim() === '') return null;
@@ -98,6 +102,16 @@ async function boot(): Promise<void> {
   let pawns!: PawnsView;
   let hud!: Hud;
   let cardsUi!: CardsUi;
+  let botCount = BOT_COUNT;
+  let botLevel: BotLevel = BOT_LEVEL;
+  /** True while the Setup Bot screen is up: the logic clock is held. */
+  let setupOpen = !SKIP_SETUP;
+  const setup = new SetupScreen(document.getElementById('hud') as HTMLElement, { botCount, botLevel }, (choice) => {
+    botCount = choice.botCount;
+    botLevel = choice.botLevel;
+    setupOpen = false;
+    newMatch();
+  });
   let accumulatorMs = 0;
   let timeScale = 1;
   let paused = false;
@@ -120,7 +134,7 @@ async function boot(): Promise<void> {
       map,
       [
         { id: HUMAN_ID, name: 'Kamu', kind: 'human' },
-        ...Array.from({ length: BOT_COUNT }, (_, i) => ({ id: `bot${i + 1}`, name: `Bot ${i + 1}`, kind: 'bot' as const, botLevel: BOT_LEVEL })),
+        ...Array.from({ length: botCount }, (_, i) => ({ id: `bot${i + 1}`, name: `Bot ${i + 1}`, kind: 'bot' as const, botLevel })),
       ],
       matchSeed,
       pool,
@@ -128,7 +142,7 @@ async function boot(): Promise<void> {
     human = new HumanController(HUMAN_ID);
     const controllers: PlayerController[] = [
       human,
-      ...initial.players.filter((p) => p.kind === 'bot').map((p) => new PlaceholderBotController(p.id, matchSeed, p.botLevel)),
+      ...initial.players.filter((p) => p.kind === 'bot').map((p) => new SmartBotController(p.id, matchSeed, p.botLevel)),
     ];
     session = new GameSession(map, initial, controllers);
     pawns = new PawnsView(board, map);
@@ -138,7 +152,8 @@ async function boot(): Promise<void> {
       onStart: () => human.submit({ type: 'startAttempt', playerId: HUMAN_ID }),
       onPause: () => setPaused(true),
       onResume: () => setPaused(false),
-      onQuit: () => newMatch(),
+      onQuit: () => (SKIP_SETUP ? newMatch() : openSetup()),
+      activityOf: (id) => session.activityOf(id),
       onPlayAgain: () => newMatch(),
     });
     cardsUi = new CardsUi(hudEl, map, HUMAN_ID, {
@@ -150,6 +165,13 @@ async function boot(): Promise<void> {
     gameOverAgo = null;
     unsubscribe = session.subscribe(onSessionEvents);
     onStateChanged(session.state);
+  }
+
+  function openSetup(): void {
+    setupOpen = true;
+    setPaused(false);
+    host.close();
+    setup.show();
   }
 
   function onSessionEvents(state: Readonly<GameState>, events: readonly GameEvent[]): void {
@@ -210,7 +232,7 @@ async function boot(): Promise<void> {
   }
 
   function handleInput(intent: InputIntent): void {
-    if (paused || host.isOpen) return;
+    if (paused || host.isOpen || setupOpen) return;
     const p = me();
     if (!p) return;
     if (intent.type === 'select' || intent.type === 'hover') {
@@ -234,23 +256,23 @@ async function boot(): Promise<void> {
   window.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType === 'touch' ? 'touch' : 'mouse'; }, { capture: true });
   window.addEventListener('keydown', (e) => {
     if (e.repeat) return;
-    if (e.code === 'Escape' && session.state.status === 'running') {
+    if (e.code === 'Escape' && session.state.status === 'running' && !setupOpen) {
       // Esc closes a card popover (detail, picker, confirmation) first; only then does it pause.
       if (!paused && cardsUi.closeCardPopovers()) return;
       setPaused(!paused);
     }
-    else if (e.code === 'Enter' && !paused && !host.isOpen) {
+    else if (e.code === 'Enter' && !paused && !host.isOpen && !setupOpen) {
       const p = me();
       if (p && canStartAttempt(session.state, p) === null) human.submit({ type: 'startAttempt', playerId: HUMAN_ID });
     }
   });
   // ui-flow §9: auto-pause when the tab is hidden (solo).
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && session.state.status === 'running') setPaused(true);
+    if (document.hidden && session.state.status === 'running' && !setupOpen) setPaused(true);
   });
 
   stage.onFrame((dt) => {
-    const gameDtMs = paused ? 0 : dt * 1000 * timeScale;
+    const gameDtMs = paused || setupOpen ? 0 : dt * 1000 * timeScale;
     accumulatorMs += gameDtMs;
     let steps = 0;
     while (accumulatorMs >= LOGIC_STEP_MS && steps < MAX_STEPS_PER_FRAME) {
@@ -262,6 +284,7 @@ async function boot(): Promise<void> {
     host.advance(gameDtMs);
     stage.renderEnabled = !host.coversRace;
     board.update(dt);
+    pawns.setActivity((id) => session.activityOf(id));
     pawns.update(dt);
     hud.render(session.state);
     cardsUi.render(session.state);
@@ -272,6 +295,7 @@ async function boot(): Promise<void> {
   });
 
   newMatch();
+  if (setupOpen) setup.show();
   stage.start();
 
   if (DEBUG) {

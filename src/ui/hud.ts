@@ -11,6 +11,7 @@ import {
   regionDifficulty,
   sabotageSlotsUsed,
   totalWins,
+  type BotActivity,
   type GameEvent,
   type GameState,
   type MapGraph,
@@ -28,6 +29,8 @@ export interface HudCallbacks {
   onResume(): void;
   onQuit(): void;
   onPlayAgain(): void;
+  /** What a waiting bot is doing, if anything (SmartBotController.activity). */
+  activityOf?(playerId: string): BotActivity | null;
 }
 
 export class Hud {
@@ -136,14 +139,15 @@ export class Hud {
       // pending row) and the sender (the small chips here) see.
       const slots = sabotageSlotsUsed(p);
       const sent = p.id === this.humanId ? [] : p.pending.filter((c) => c.source === this.humanId && getCard(c.defId).type === 'sabotage');
-      return `<li class="prow${p.id === this.humanId ? ' me' : ''}" data-testid="progress-row-${p.id}" data-remaining="${p.remainingWins}" data-slots="${slots}">
+      const activity = this.cb.activityOf?.(p.id) ?? null;
+      return `<li class="prow${p.id === this.humanId ? ' me' : ''}" data-testid="progress-row-${p.id}" data-remaining="${p.remainingWins}" data-slots="${slots}" data-activity="${activity ?? ''}">
         <span class="rank">${i + 1}</span>
         <span class="dot" style="background:${PLAYER_CSS_COLORS[p.colorIndex % PLAYER_CSS_COLORS.length]}"></span>
         <span class="pname">${esc(p.id === this.humanId ? t('you') : p.name)}</span>
         <span class="bar"><span style="width:${pct}%"></span></span>
         <span class="left">${t('race.winsLeft', { n: p.remainingWins })}</span>
         <span class="slots${slots > 0 ? ' hit' : ''}" data-testid="slots-${p.id}" title="${t('slots.label')}" aria-label="${t('slots.label')}: ${slots}/2">${slots > 0 ? '⚡' : ''}${slotDots(slots)}</span>
-        <span class="status" title="${statusText(state, p)}">${statusIcon(state, p)}</span>
+        <span class="status${activity ? ' waiting' : ''}" data-testid="status-${p.id}" title="${statusText(state, p, activity)}">${statusIcon(state, p, activity)}</span>
         ${sent.length ? `<span class="sent" data-testid="sent-${p.id}">${sent.map((c) => `${getCard(c.defId).icon} ${esc(t(getCard(c.defId).nameKey))}`).join(', ')}</span>` : ''}</li>`;
     });
     this.patch(this.el.progress, rows.join(''));

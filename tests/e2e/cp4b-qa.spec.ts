@@ -406,7 +406,6 @@ test.describe('picker, spec deviations (documented bugs: each test passes while 
   });
 
   test('QA-CP4b-04: a picker row keeps the same DOM node while bots change state (a touch that straddles a re-render would be dropped)', async ({ page }) => {
-    test.fail(true, 'QA-CP4b-04: the picker HTML is rebuilt whenever any displayed value changes');
     await open(page, { bots: 3 });
     await give(page, 'badai');
     await openDetail(page, 'badai');
@@ -459,6 +458,7 @@ test.describe('picker: ranking and match end', () => {
       for (let w = 0; w < 2; w++) {
         await dispatch(page, { type: 'startAttempt', playerId: 'bot1' });
         await dispatch(page, { type: 'minigameResult', playerId: 'bot1', passed: true });
+        await dispatch(page, { type: 'autoCards', playerId: 'bot1' }); // the offer, then an overflow Discard it may open
         await dispatch(page, { type: 'autoCards', playerId: 'bot1' });
       }
     }

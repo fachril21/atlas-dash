@@ -5,7 +5,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import type { AtlasTestApi } from '../../src/ui/debug';
-import { box, byId, consoleErrors, dispatch, getState, me, open, overlaps, press } from './helpers';
+import { box, byId, consoleErrors, dispatch, getState, me, open, overlaps, press, setTimeScale } from './helpers';
 
 type Api = AtlasTestApi;
 const noErrors = (page: Page) => expect(consoleErrors.get(page) ?? []).toEqual([]);
@@ -251,14 +251,18 @@ test.describe('Pause above the card modals (QA-CP4a-03)', () => {
 });
 
 test.describe('bots hold hands (DR-32)', () => {
-  test('a bot win gives it cards at once, with no screen; a Copet can then take one', async ({ page }) => {
+  test('a bot win opens an offer that its controller answers at its next poll (CP5a); a Copet can then take one', async ({ page }) => {
     await open(page, { bots: 1 });
+    await setTimeScale(page, 0); // no poll yet: the screen is still open
     await dispatch(page, { type: 'selectTarget', playerId: 'bot1', targetId: 'medan' });
     await dispatch(page, { type: 'startAttempt', playerId: 'bot1' });
     await dispatch(page, { type: 'minigameResult', playerId: 'bot1', passed: true });
+    expect((await getState(page)).players.find((p) => p.id === 'bot1')!.offer).not.toBeNull();
+    await setTimeScale(page, 1);
+    await expect.poll(async () => (await getState(page)).players.find((p) => p.id === 'bot1')!.offer, { timeout: 15_000 }).toBeNull();
+    await setTimeScale(page, 0);
     const st = await getState(page);
     const bot = st.players.find((p) => p.id === 'bot1')!;
-    expect(bot.offer).toBeNull();
     expect(bot.hand.length).toBeGreaterThanOrEqual(2);
     expect(bot.hand.length).toBeLessThanOrEqual(5);
     await give(page, 'copet');

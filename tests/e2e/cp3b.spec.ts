@@ -96,7 +96,8 @@ async function startAt(page: Page, seed: number, path: Path, target: string): Pr
   return a;
 }
 
-const waitPlay = (page: Page) => expect(byId(page, 'mg-overlay')).toHaveAttribute('data-phase', 'play', { timeout: 20_000 });
+// QA-CP4b-05: the 3D minigame clock slows down with the frame rate (dt is clamped), so the 3 s intro can take far longer than 20 s of wall time on a busy machine.
+const waitPlay = (page: Page) => expect(byId(page, 'mg-overlay')).toHaveAttribute('data-phase', 'play', { timeout: 60_000 });
 const banner = (page: Page) => byId(page, 'mg-banner');
 
 async function canvasCount(page: Page): Promise<number> {
@@ -116,6 +117,8 @@ const entered = async (page: Page) => Number(await byId(page, 'mg-simon-status')
 const roundOf = async (page: Page) => Number(await byId(page, 'mg-progress').getAttribute('data-round'));
 
 test.describe('simon', () => {
+  // QA-CP4b-05: the mobile Simon runs are load-sensitive (software WebGL + full suite); give them room.
+  test.describe.configure({ timeout: 180_000 });
   test('mg_simon_ui: pads, glyphs, misses, status testids; pad count follows difficulty; touch targets >= 48', async ({ page }) => {
     const seed = findSeed('simon', EASY_PATH, 'yogyakarta');
     const a = await startAt(page, seed, EASY_PATH, 'yogyakarta');
@@ -525,7 +528,8 @@ test.describe('dodge_runner', () => {
       expect((await attemptOf(page)).minigameId).toBe('dodge_runner');
       await waitPlay(page);
       await page.waitForTimeout(200); // let a few 3D frames render
-      expect(await force(page, false)).toBe(true);
+      // Under load the run can end by itself (3 hits at 10x speed) before the forced result lands; either way the cycle closes.
+      await force(page, false);
       await waitIdle(page);
       await expect(byId(page, 'mg-canvas')).toHaveCount(0);
       expect(await canvasCount(page)).toBe(base);

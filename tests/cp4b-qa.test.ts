@@ -25,7 +25,7 @@ import {
   MINIGAME_LOGIC,
   offerPool,
   opponentChecks,
-  PlaceholderBotController,
+  SmartBotController,
   replay,
   Rng,
   sabotagePlayability,
@@ -37,7 +37,7 @@ import {
   type PlayerState,
   type Rarity,
 } from '../src/logic';
-import { indonesiaData } from './helpers';
+import { answerBotScreens, botControllers, indonesiaData } from './helpers';
 
 const map = loadMap(indonesiaData(), 'standard', MINIGAME_LOGIC);
 const pool = minigamePool(map.data);
@@ -492,10 +492,11 @@ describe('16. comeback weights measured over many seeds', () => {
 
   it('the gap counts bots too: a bot in front lowers the human\'s tier exactly like a human would', () => {
     let s = game(2, ['p1', 'b1']);
+    const ctls = botControllers(s);
     for (const r of ['medan', 'jakarta']) {
       s = run(s, [sel('b1', r)]);
-      s = run(s, [start('b1'), res(true, 'b1')]);
-      s = run(s, [start('b1'), res(true, 'b1')]);
+      s = answerBotScreens(map, run(s, [start('b1'), res(true, 'b1')]), ctls);
+      s = answerBotScreens(map, run(s, [start('b1'), res(true, 'b1')]), ctls);
     }
     expect(P(s, 'b1').offer).toBeNull();
     expect(P(s, 'b1').hand.length).toBeLessThanOrEqual(5);
@@ -515,7 +516,7 @@ describe('17. bots: pass rate with sabotage pending (DR-35), measured', () => {
       s = run(s, [sel('b1', 'medan'), start('b1')]);
       diff = P(s, 'b1').attempt!.difficulty;
       s = run(s, [tick(120_000)]);
-      const bot = new PlaceholderBotController('b1', seed, 'normal');
+      const bot = new SmartBotController('b1', seed, 'normal');
       const a = bot.nextAction(s, map)!;
       expect(a.type).toBe('minigameResult');
       if (a.type === 'minigameResult' && a.passed) pass++;
@@ -675,6 +676,7 @@ describe('19-20. bigger fuzz: zones, per-play oracle, determinism, replay, tick-
     for (let seed = 1; seed <= 250; seed++) {
       const rng = new Rng(seed * 7919 + 13);
       let s = game(seed, ['p1', 'p2', 'b1', 'b2']);
+      const ctls = botControllers(s);
       for (let i = 0; i < 250 && s.status === 'running'; i++) {
         const a = randomAction(s, rng);
         const frozen = JSON.stringify(s);
@@ -687,7 +689,7 @@ describe('19-20. bigger fuzz: zones, per-play oracle, determinism, replay, tick-
           plays++;
           for (const e of r.events) if (e.type === 'sabotagePlayed') seen.add(`${e.cardId}:${e.outcome}`);
         }
-        s = r.state;
+        s = answerBotScreens(map, r.state, ctls); // CP5a: a bot screen never stays open longer than one poll
         invariants(s, `seed ${seed} step ${i}`);
       }
     }
@@ -714,7 +716,7 @@ describe('19-20. bigger fuzz: zones, per-play oracle, determinism, replay, tick-
     let screens = 0;
     for (let seed = 1; seed <= 150; seed++) {
       const mk = () => game(seed, ['p1', 'p2', 'b1']);
-      const session = new GameSession(map, mk(), [new HumanController('p1'), new HumanController('p2'), new PlaceholderBotController('b1', seed, 'normal')]);
+      const session = new GameSession(map, mk(), [new HumanController('p1'), new HumanController('p2'), new SmartBotController('b1', seed, 'normal')]);
       const rng = new Rng(seed * 101 + 3);
       for (let i = 0; i < 400 && session.state.status === 'running'; i++) {
         if (rng.chance(0.35)) {

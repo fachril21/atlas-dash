@@ -23,7 +23,7 @@ const playerOf = (state: GameState, id: string): PlayerState => state.players.fi
 
 /**
  * New cards enter the hand in slot order with rising handSeq. Overflow opens the discard screen
- * (bots resolve it at once; a player inside a minigame gets it afterwards, see ensureDiscard).
+ * (a bot's controller answers at its next poll; a player inside a minigame gets it afterwards, see ensureDiscard).
  */
 export function addToHand(state: GameState, p: PlayerState, cards: CardInstance[], events: GameEvent[]): void {
   const added = cards.map((c) => ({ ...c, seq: p.nextHandSeq++ }));
@@ -38,7 +38,6 @@ function openDiscardIfNeeded(state: GameState, p: PlayerState, newUids: string[]
   if (p.hand.length <= HAND_MAX || p.discard || p.offer || p.phase !== 'idle') return;
   p.discard = { newUids, marked: [], expiresAtMs: state.timeMs + CARD_SCREEN_MS };
   events.push({ type: 'discardRequired', playerId: p.id, count: discardNeeded(p) });
-  if (p.kind === 'bot') autoResolve(state, p, events);
 }
 
 /** After a minigame: a hand that grew while the player was playing (reflected Copet) is handled now. */
@@ -68,8 +67,8 @@ export function reconcileDiscard(p: PlayerState, events: GameEvent[]): void {
 export function openOffer(state: GameState, p: PlayerState, cards: CardInstance[], pick: number, events: GameEvent[]): void {
   p.offer = { cards, pick: Math.min(pick, cards.length), marked: [], expiresAtMs: state.timeMs + CARD_SCREEN_MS };
   events.push({ type: 'cardOffered', playerId: p.id, cardIds: cards.map((c) => c.defId), pick: p.offer.pick });
-  // DR-32: bots have no screen; they pick and drop at once with the deterministic §3.4 rules.
-  if (p.kind === 'bot') autoResolve(state, p, events);
+  // CP5a (bots.md §6): a bot's screen opens like anyone's and its controller answers it with one
+  // atomic `chooseCards` on its next poll (so it never stays open longer than one poll).
 }
 
 /** Draw the 5-card offer from the player's "cards" stream: all 20 cards, comeback weights (§3.2). */

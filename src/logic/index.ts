@@ -10,3 +10,8 @@ export * from './cards';
 export * from './effects';
 export * from './offers';
 export * from './sabotage';
+export * from './botProfiles';
+export * from './botObservation';
+export * from './botDecisions';
+export * from './smartBot';
+export * from './sim';

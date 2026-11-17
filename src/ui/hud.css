@@ -57,6 +57,9 @@
 .prow .bar { height: 8px; border-radius: 999px; background: #e3eef6; overflow: hidden; }
 .prow .bar > span { display: block; height: 100%; background: #2ec4b6; transition: width 0.4s; }
 .prow .left { font-size: 0.85em; opacity: 0.8; white-space: nowrap; }
+.prow .status.waiting { animation: think-pulse 1.1s ease-in-out infinite alternate; }
+@keyframes think-pulse { from { opacity: 0.45; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .prow .status.waiting { animation: none; } }
 .prow .slots { font-size: 0.7em; letter-spacing: 1px; color: #5a6b85; white-space: nowrap; }
 .prow .slots.hit { color: #d1495b; }
 .prow .sent { grid-column: 3 / -1; font-size: 0.72em; color: #d1495b; font-weight: 800; }
@@ -159,6 +162,14 @@
 .hud-modal .col { display: grid; gap: 10px; }
 .podium { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; text-align: left; }
 .podium li { display: grid; grid-template-columns: 2.2em 14px 1fr auto; gap: 8px; align-items: center; }
+
+/* Setup Bot screen. */
+.setup .setup-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; text-align: left; }
+.setup .stepper, .setup .segmented { display: inline-flex; align-items: center; gap: 6px; }
+.setup .stepper .count { min-width: 1.6em; text-align: center; font-size: 1.3em; font-weight: 800; }
+#hud .setup .segmented button { background: #e3eef6; color: var(--hud-ink); box-shadow: none; padding: 8px 12px; }
+#hud .setup .segmented button.on { background: #3a86ff; color: #fff; }
+#hud .setup button:disabled { opacity: 0.4; cursor: default; }
 
 /* Region labels (CSS2DRenderer layer). */
 .label-layer { position: absolute; inset: 0; pointer-events: none; }

@@ -24,7 +24,7 @@ import {
   minigamePool,
   MINIGAME_LOGIC,
   offerPool,
-  PlaceholderBotController,
+  SmartBotController,
   pickCount,
   replay,
   resolveAttemptEffects,
@@ -37,7 +37,7 @@ import {
   type PlayerState,
   type Rarity,
 } from '../src/logic';
-import { indonesiaData } from './helpers';
+import { answerBotScreens, botControllers, indonesiaData } from './helpers';
 
 const map = loadMap(indonesiaData(), 'standard', MINIGAME_LOGIC);
 const pool = minigamePool(map.data);
@@ -823,8 +823,9 @@ describe('16. comeback weights (§3.2)', () => {
 describe('17. bots', () => {
   const botGame = (seed = 8): GameState => game(seed, ['p1', 'b1', 'b2']);
 
-  it('a bot win gives an offer that resolves at once (no screen, no timer); hand <= 5 forever', () => {
+  it('a bot win opens an offer that its controller answers with one chooseCards at the next poll; hand <= 5 afterwards', () => {
     let s = botGame();
+    const ctls = botControllers(s);
     let wins = 0;
     for (let i = 0; i < 3 && s.status === 'running'; i++) {
       const r = ['medan', 'jakarta', 'toraja'][i] as string;
@@ -832,12 +833,17 @@ describe('17. bots', () => {
       const out = step(s, res(true, 'b1'));
       s = out.state;
       expect(out.events.some((e) => e.type === 'cardOffered')).toBe(true);
-      expect(out.events.some((e) => e.type === 'cardsPicked' && (e as { auto: boolean }).auto)).toBe(true);
+      expect(P(s, 'b1').offer).not.toBeNull(); // open until the bot's next poll (CP5a, bots.md §6)
+      const a = ctls.get('b1')!.nextAction(s, map)!;
+      expect(a.type).toBe('chooseCards');
+      const ans = step(s, a);
+      expect(ans.events.some((e) => e.type === 'cardsPicked' && !(e as { auto: boolean }).auto)).toBe(true);
+      s = answerBotScreens(map, ans.state, ctls); // the Discard screen an overflow may open
       expect(P(s, 'b1').offer).toBeNull();
       expect(P(s, 'b1').discard).toBeNull();
       expect(P(s, 'b1').hand.length).toBeLessThanOrEqual(5);
       wins++;
-      if (P(s, 'b1').targetId) s = run(s, [start('b1'), res(true, 'b1')]);
+      if (P(s, 'b1').targetId) s = answerBotScreens(map, run(s, [start('b1'), res(true, 'b1')]), ctls);
       expect(P(s, 'b1').hand.length).toBeLessThanOrEqual(5);
     }
     expect(wins).toBeGreaterThan(0);
@@ -847,9 +853,11 @@ describe('17. bots', () => {
 
   it('bots use the tier weights of their own gap', () => {
     let s = botGame(31);
+    const ctls = botControllers(s);
     s = run(s, [sel('p1', 'medan')]);
     for (const r of ['medan', 'jakarta', 'toraja']) {
-      s = run(s, [sel('b2', r), start('b2'), res(true, 'b2'), start('b2'), res(true, 'b2')]);
+      s = run(s, [sel('b2', r)]);
+      for (let w = 0; w < 2; w++) s = answerBotScreens(map, run(s, [start('b2'), res(true, 'b2')]), ctls);
     }
     s = run(s, [sel('b1', 'medan'), start('b1')]);
     const rngBefore = P(s, 'b1').cardsRng;
@@ -862,11 +870,14 @@ describe('17. bots', () => {
     expect(ev.cardIds).toEqual(buildOffer(offerPool(), t.weights, Rng.fromState(rngBefore), t.guaranteeRarePlus).map((c) => c.id));
   });
 
-  it('a bot session never plays a card (CP5), but cards land on it and it can be stolen from', () => {
+  it('a bot session plays cards now (CP5a), with no rejected action, and cards still land on it and can be stolen from', () => {
     const initial = botGame(77);
-    const session = new GameSession(map, initial, [new HumanController('p1'), new PlaceholderBotController('b1', 77, 'normal'), new PlaceholderBotController('b2', 77, 'hard')]);
+    const session = new GameSession(map, initial, [new HumanController('p1'), new SmartBotController('b1', 77, 'normal'), new SmartBotController('b2', 77, 'hard')]);
+    let rejected = 0;
+    session.subscribe((_s, evs) => { rejected += evs.filter((e) => e.type === 'actionRejected').length; });
     for (let i = 0; i < 20_000 && session.state.status === 'running'; i++) session.step();
-    expect(session.eventLog.some((l) => l.event.type === 'cardPlayed' && l.event.playerId !== 'p1')).toBe(false);
+    expect(rejected).toBe(0);
+    expect(session.eventLog.some((l) => l.event.type === 'cardPlayed' && l.event.playerId.startsWith('b'))).toBe(true);
     expect(session.eventLog.some((l) => l.event.type === 'cardOffered' && l.event.playerId.startsWith('b'))).toBe(true);
     for (const b of session.state.players.filter((p) => p.kind === 'bot')) {
       expect(b.hand.length).toBeLessThanOrEqual(5);
@@ -902,11 +913,14 @@ describe('17. bots', () => {
     expect(P(s, 'b1').hand).toHaveLength(0);
   });
 
-  it('debug-granted cards over 5 are dropped at once for a bot (auto-discard rules)', () => {
+  it('a bot with 7 cards gets a Discard screen and drops the 2 lowest-value (oldest first) with one chooseCards', () => {
     let s = botGame();
     for (let i = 0; i < 7; i++) s = give(s, i < 3 ? 'jam_pasir' : 'badai', 'b1');
+    expect(P(s, 'b1').discard).not.toBeNull(); // open until the controller's next poll
+    s = answerBotScreens(map, s, botControllers(s));
     expect(P(s, 'b1').hand).toHaveLength(5);
     expect(P(s, 'b1').discard).toBeNull();
+    expect(defsIn(P(s, 'b1').hand).sort()).toEqual(['badai', 'badai', 'badai', 'badai', 'jam_pasir']);
     expectZones(s);
   });
 
@@ -936,6 +950,7 @@ describe('19-20. zones fuzz and replay', () => {
     for (let seed = 1; seed <= 60; seed++) {
       const rng = new Rng(seed * 104729);
       let s = game(seed, ['p1', 'p2', 'b1', 'p3']);
+      const ctls = botControllers(s);
       const pids = s.players.map((p) => p.id);
       const regions = [...map.regions.keys()];
       for (let i = 0; i < 300 && s.status === 'running'; i++) {
@@ -957,7 +972,7 @@ describe('19-20. zones fuzz and replay', () => {
           a = { type: 'markCard', playerId: pid, cardUid: rng.pick(list).uid };
         } else if (k === 11) a = { type: 'confirmCards', playerId: pid };
         else a = tick(50);
-        s = applyAction(map, s, a).state;
+        s = answerBotScreens(map, applyAction(map, s, a).state, ctls); // a bot screen lives at most one poll
         expectZones(s, `seed ${seed} step ${i}`);
         for (const q of s.players) {
           expect(q.offer && q.discard).toBeFalsy();
@@ -997,7 +1012,7 @@ describe('19-20. zones fuzz and replay', () => {
   it('replay(actionLog) of a session with sabotage, Copet and card timeouts equals the live state', () => {
     for (const seed of [4321, 77, 9001]) {
       const mk = () => game(seed, ['p1', 'p2', 'b1']);
-      const session = new GameSession(map, mk(), [new HumanController('p1'), new HumanController('p2'), new PlaceholderBotController('b1', seed, 'normal')]);
+      const session = new GameSession(map, mk(), [new HumanController('p1'), new HumanController('p2'), new SmartBotController('b1', seed, 'normal')]);
       const h1 = session.state.players[0]!.id;
       const feed: GameAction[] = [
         { type: 'debugGrantCard', playerId: h1, cardId: 'badai' },

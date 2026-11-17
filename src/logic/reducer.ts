@@ -354,6 +354,20 @@ export function applyAction(map: MapGraph, prev: GameState, action: GameAction):
       return { state, events };
     }
 
+    case 'chooseCards': {
+      if (!before.offer && !before.discard) return reject('no-cards-screen');
+      const need = before.offer ? before.offer.pick : discardNeeded(before);
+      const valid = new Set((before.offer ? before.offer.cards : before.hand).map((c) => c.uid));
+      const uids = action.cardUids;
+      if (uids.length !== need || new Set(uids).size !== uids.length || uids.some((u) => !valid.has(u))) return reject('bad-selection');
+      const state = cloneState(prev);
+      const p = state.players[idx] as PlayerState;
+      const events: GameEvent[] = [];
+      if (p.offer) resolveOffer(state, p, uids, false, events);
+      else resolveDiscard(p, uids, false, events);
+      return { state, events };
+    }
+
     case 'autoCards': {
       if (!before.offer && !before.discard) return reject('no-cards-screen');
       const state = cloneState(prev);

@@ -18,7 +18,7 @@ import {
   loadMap,
   minigamePool,
   MINIGAME_LOGIC,
-  PlaceholderBotController,
+  SmartBotController,
   pickCount,
   replay,
   resolveAttemptEffects,
@@ -492,7 +492,7 @@ describe('determinism', () => {
   ], seed, pool);
   const scripted = (seed: number) => {
     const human = new HumanController('p1');
-    const bot = new PlaceholderBotController('p2', seed, 'normal');
+    const bot = new SmartBotController('p2', seed, 'normal');
     const session = new GameSession(map, createInitialState(map, [
       { id: 'p1', name: 'p1', kind: 'human' }, { id: 'p2', name: 'p2', kind: 'bot', botLevel: 'normal' },
     ], seed, pool), [human, bot]);

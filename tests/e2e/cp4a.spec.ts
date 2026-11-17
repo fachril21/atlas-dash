@@ -349,13 +349,12 @@ test.describe('QA hooks, B-1, bots', () => {
     expect(await byId(page, 'mg-overlay').evaluate((e) => e.hasAttribute('data-minigame'))).toBe(false);
   });
 
-  test('bots receive offers and auto-pick; they never play cards', async ({ page }) => {
+  test('bots receive offers and answer them with their own picks (CP5a); hands stay legal', async ({ page }) => {
     await open(page, { bots: 2, botLevel: 'hard' });
     await setTimeScale(page, 40);
     await expect.poll(async () => (await getState(page)).players.filter((p) => p.kind === 'bot').every((b) => b.hand.length + b.discarded.length > 0), { timeout: 40_000 }).toBe(true);
     const s: GameState = await getState(page);
     for (const b of s.players.filter((p) => p.kind === 'bot')) {
-      expect(b.pending).toHaveLength(0);
       expect(b.hand.length).toBeLessThanOrEqual(9);
       if (!b.offer && !b.discard) expect(b.hand.length).toBeLessThanOrEqual(5);
     }

@@ -126,7 +126,7 @@ describe('dodge_runner generateLevel', () => {
         }
       }
     }
-  });
+  }, 30_000); // QA-CP4b-05: 2 s alone, 5+ s when the suite runs in parallel on a busy machine
 
   it('easy never has 2-lane rows; medium/hard have roughly 20% / 40%', () => {
     const share = (d: Difficulty) => {
@@ -139,7 +139,7 @@ describe('dodge_runner generateLevel', () => {
     expect(share('medium')).toBeLessThan(0.24);
     expect(share('hard')).toBeGreaterThan(0.36);
     expect(share('hard')).toBeLessThan(0.44);
-  });
+  }, 30_000);
 
   it('fairness: consecutive 2-lane rows have free lanes at most 1 lane apart (500 seeds)', () => {
     for (let seed = 1; seed <= 500; seed++) {

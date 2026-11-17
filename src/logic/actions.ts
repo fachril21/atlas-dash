@@ -21,6 +21,11 @@ export type GameAction =
   | { type: 'markCard'; playerId: string; cardUid: string }
   /** "Ambil" / "Buang": needs exactly N (or the overflow count) marked. */
   | { type: 'confirmCards'; playerId: string }
+  /**
+   * One atomic answer to the open card screen (bots, DR-32 / bots.md §6): exactly N offer cards to
+   * take, or exactly the overflow count of hand cards to drop. Marks are ignored.
+   */
+  | { type: 'chooseCards'; playerId: string; cardUids: string[] }
   /** Resolve the open card screen with the auto-pick / auto-discard rule (timeouts, bots, QA). */
   | { type: 'autoCards'; playerId: string }
   /** DEBUG ONLY (QA hooks): put a card in the hand. */

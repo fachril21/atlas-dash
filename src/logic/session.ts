@@ -3,7 +3,7 @@
  * subscribers. Rendering and UI subscribe; they never write state directly.
  */
 import type { GameAction, GameEvent } from './actions';
-import type { PlayerController } from './controllers';
+import type { BotActivity, PlayerController } from './controllers';
 import type { MapGraph } from './map';
 import { applyAction } from './reducer';
 import type { GameState } from './state';
@@ -26,6 +26,8 @@ export class GameSession {
   private _state: GameState;
   private readonly listeners = new Set<SessionListener>();
   private _paused = false;
+  /** True when the last step() applied a non-tick action (headless skip-ahead polls again next step). */
+  private actedLastStep = false;
   /** Every applied action except ticks, plus tick totals folded in, for replay. */
   readonly actionLog: LoggedAction[] = [];
   readonly eventLog: LoggedEvent[] = [];
@@ -51,6 +53,11 @@ export class GameSession {
     this._paused = paused;
   }
 
+  /** What a waiting bot is doing ("thinking" / "braking"), for the HUD; null for humans and idle bots. */
+  activityOf(playerId: string): BotActivity | null {
+    return this.controllers.find((c) => c.playerId === playerId)?.activity?.() ?? null;
+  }
+
   subscribe(fn: SessionListener): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
@@ -71,10 +78,30 @@ export class GameSession {
   step(dtMs: number = LOGIC_STEP_MS): void {
     if (this._paused) return;
     this.dispatch({ type: 'tick', dtMs });
+    this.actedLastStep = false;
     for (const c of this.controllers) {
       const action = c.nextAction(this._state, this.map);
-      if (action) this.dispatch(action);
+      if (action) {
+        this.actedLastStep = true;
+        this.dispatch(action);
+      }
     }
+  }
+
+  /**
+   * Headless skip-ahead (simulator): advance to the next step at which some controller wants a
+   * poll, in whole LOGIC_STEP_MS multiples, never more than `maxDtMs`. Same results as calling
+   * step() every 50 ms (tested), because controllers report a lower bound of their next useful
+   * poll and every applied action forces a poll at the very next step.
+   */
+  stepToNextWake(maxDtMs = 60_000): void {
+    if (this._paused) return;
+    const now = this._state.timeMs;
+    let wake = this.actedLastStep ? now : Infinity;
+    for (const c of this.controllers) wake = Math.min(wake, c.wakeAtMs ? c.wakeAtMs(this._state, this.map) : now);
+    const steps = Number.isFinite(wake) ? Math.ceil((wake - now) / LOGIC_STEP_MS) : Math.floor(maxDtMs / LOGIC_STEP_MS);
+    const cap = Math.max(1, Math.floor(maxDtMs / LOGIC_STEP_MS));
+    this.step(Math.min(cap, Math.max(1, steps)) * LOGIC_STEP_MS);
   }
 
   private logAction(action: GameAction): void {

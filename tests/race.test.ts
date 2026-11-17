@@ -8,7 +8,7 @@ import {
   loadMap,
   minigamePool,
   MINIGAME_LOGIC,
-  PlaceholderBotController,
+  SmartBotController,
   ranking,
   replay,
   RETRY_INTRO_MS,
@@ -265,7 +265,7 @@ describe('session with placeholder bots', () => {
       seed,
       pool,
     );
-    const bots = initial.players.map((p) => new PlaceholderBotController(p.id, seed, 'normal'));
+    const bots = initial.players.map((p) => new SmartBotController(p.id, seed, 'normal'));
     const session = new GameSession(map, initial, bots);
     for (let i = 0; i < 200_000 && session.state.status === 'running'; i++) session.step();
     return { session, initial };
@@ -284,7 +284,7 @@ describe('session with placeholder bots', () => {
   it('pause freezes the logic clock and bots', () => {
     const { session } = simulate(1);
     const initial = createInitialState(map, [{ id: 'b1', name: 'b1', kind: 'bot', botLevel: 'normal' }], 5, pool);
-    const s = new GameSession(map, initial, [new PlaceholderBotController('b1', 5)]);
+    const s = new GameSession(map, initial, [new SmartBotController('b1', 5)]);
     for (let i = 0; i < 100; i++) s.step();
     const frozen = structuredClone(s.state);
     s.setPaused(true);

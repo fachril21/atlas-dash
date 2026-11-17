@@ -4,7 +4,7 @@
  * the logic event, the walk to the finish just plays afterwards (DR-06).
  */
 import * as THREE from 'three';
-import type { GameState, MapGraph } from '../logic';
+import type { BotActivity, GameState, MapGraph } from '../logic';
 import type { BoardView } from './board';
 import { PLAYER_COLORS } from './palette';
 
@@ -26,6 +26,9 @@ interface Hop {
 
 interface PawnView {
   group: THREE.Group;
+  /** "Thinking" bubble above the head, shown while a bot waits on purpose. */
+  bubble: THREE.Sprite;
+  thinking: boolean;
   body: THREE.Group;
   shownPathLength: number;
   queue: Hop[];
@@ -43,6 +46,36 @@ const sharedGeo = {
   eye: new THREE.SphereGeometry(0.035, 6, 4),
   cheek: new THREE.SphereGeometry(0.04, 6, 4),
 };
+/** Three dots in a round bubble, drawn once (no font needed) and shared by every pawn. */
+let bubbleTexture: THREE.CanvasTexture | null = null;
+function getBubbleTexture(): THREE.CanvasTexture {
+  if (bubbleTexture) return bubbleTexture;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 80;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  g.fillStyle = 'rgba(255,255,255,0.95)';
+  g.beginPath();
+  g.roundRect(4, 4, 120, 56, 28);
+  g.fill();
+  g.beginPath();
+  g.moveTo(52, 58);
+  g.lineTo(64, 76);
+  g.lineTo(76, 58);
+  g.fill();
+  g.fillStyle = '#23324a';
+  for (const x of [34, 64, 94]) {
+    g.beginPath();
+    g.arc(x, 32, 8, 0, Math.PI * 2);
+    g.fill();
+  }
+  bubbleTexture = new THREE.CanvasTexture(c);
+  bubbleTexture.colorSpace = THREE.SRGBColorSpace;
+  return bubbleTexture;
+}
+let bubbleMat: THREE.SpriteMaterial | null = null;
+const getBubbleMaterial = (): THREE.SpriteMaterial => (bubbleMat ??= new THREE.SpriteMaterial({ map: getBubbleTexture(), transparent: true, depthTest: false }));
+
 const skinMat = new THREE.MeshStandardMaterial({ color: 0xffe0c2, roughness: 0.7, flatShading: true });
 const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
 const cheekMat = new THREE.MeshBasicMaterial({ color: 0xff9eb5 });
@@ -105,11 +138,18 @@ export class PawnsView {
         const group = new THREE.Group();
         group.name = `Pawn:${p.id}`;
         group.add(body);
+        const bubble = new THREE.Sprite(getBubbleMaterial());
+        bubble.name = `Thinking:${p.id}`;
+        bubble.scale.set(0.8, 0.5, 1);
+        bubble.position.y = 1.45;
+        bubble.visible = false;
+        bubble.renderOrder = 10;
+        group.add(bubble);
         group.position.copy(slotPos(p.id, p.nodeId));
         group.rotation.y = Math.PI / 4;
         this.root.add(group);
         view = {
-          group, body, shownPathLength: p.path.length, queue: [], from: group.position.clone(),
+          group, bubble, thinking: false, body, shownPathLength: p.path.length, queue: [], from: group.position.clone(),
           current: null, t: 1, bobPhase: p.colorIndex * 1.7, facing: Math.PI / 4,
         };
         this.pawns.set(p.id, view);
@@ -136,9 +176,18 @@ export class PawnsView {
     }
   }
 
+  /** Show the bubble over pawns whose bot is thinking or braking (null = none). Cosmetic only. */
+  setActivity(activityOf: (playerId: string) => BotActivity | null): void {
+    for (const [id, v] of this.pawns) {
+      v.thinking = activityOf(id) !== null;
+      v.bubble.visible = v.thinking;
+    }
+  }
+
   update(dt: number): void {
     for (const v of this.pawns.values()) {
       v.bobPhase += dt * 4;
+      if (v.thinking) v.bubble.position.y = 1.45 + Math.sin(v.bobPhase * 0.6) * 0.06;
       if (!v.current && v.queue.length > 0) {
         v.current = v.queue.shift() as Hop;
         v.from.copy(v.group.position);
